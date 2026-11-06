@@ -78,7 +78,7 @@ pnpm run deploy:cloudflare
 4. 构建前台和后台；
 5. 执行远程数据库迁移；
 6. 部署 Worker；
-7. 如不存在则生成 `APP_MASTER_KEY` 和 `SETUP_TOKEN`；
+7. 保留现有 `APP_MASTER_KEY`，并在商城尚未初始化时生成或刷新一次性安装令牌；
 8. 输出商城地址、后台地址和一次性初始化链接。
 
 可重复执行：已有资源和密钥会复用，不会覆盖业务数据。
