@@ -38,7 +38,7 @@ const EXTENSION_TYPES: Record<string, string> = {
 };
 
 export function mediaUrl(r2Key: string): string {
-  return `/media/${r2Key}`;
+  return /^https:\/\//i.test(r2Key) ? r2Key : `/media/${r2Key}`;
 }
 
 export async function storeMedia(
@@ -99,10 +99,10 @@ export async function storeMedia(
   };
 }
 
-export async function deleteMedia(db: Database, bucket: R2Bucket, id: string): Promise<void> {
+export async function deleteMedia(db: Database, bucket: R2Bucket | undefined, id: string): Promise<void> {
   const row = await db.first<{ r2_key: string }>("SELECT r2_key FROM media WHERE id = ?", [id]);
   if (!row) throw new HttpError(404, "media_not_found", "Media not found.");
-  await bucket.delete(row.r2_key);
+  if (bucket && !/^https:\/\//i.test(row.r2_key)) await bucket.delete(row.r2_key);
   await db.run("DELETE FROM product_images WHERE r2_key = ?", [row.r2_key]);
   await db.run("DELETE FROM media WHERE id = ?", [id]);
 }
