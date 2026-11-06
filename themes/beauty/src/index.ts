@@ -67,6 +67,11 @@ body { background: radial-gradient(circle at 12% 8%, #fff 0%, #fff7f5 42%, #fdee
   .tk-pdp-media-main { aspect-ratio: 1 / 1.08; }
 }
 
+@media (max-width: 760px) {
+  .tk-header--centered .tk-header-inner { min-height: 66px; padding: 8px 0; }
+  .tk-brand { font-size: 1.25rem; }
+}
+
 `;
 
 export const theme = createTheme({
