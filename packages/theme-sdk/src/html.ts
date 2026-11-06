@@ -13,12 +13,16 @@ export function productCard(product: StorefrontProduct, basePath = ""): string {
   const image = product.imageUrl
     ? `<img src="${escapeAttr(product.imageUrl)}" alt="${escapeAttr(product.imageAlt)}" loading="lazy" decoding="async" width="600" height="750">`
     : `<div class="cc-product-placeholder" aria-hidden="true"></div>`;
+  const badge = !product.inStock
+    ? "<span class=\"cc-badge\">Sold out</span>"
+    : product.compareAtPriceCents && product.compareAtPriceCents > product.priceCents
+      ? "<span class=\"cc-badge cc-badge--sale\">Sale</span>"
+      : "";
   return `<article class="cc-product-card">
-  <a class="cc-product-media" href="${escapeAttr(href)}">${image}</a>
+  <a class="cc-product-media" href="${escapeAttr(href)}">${image}${badge}</a>
   <div class="cc-product-info">
     <h3 class="cc-product-title"><a href="${escapeAttr(href)}">${escapeHtml(product.name)}</a></h3>
     <p class="cc-product-price">${money(product.priceCents, product.currency)} ${compare}</p>
-    ${product.inStock ? "" : '<p class="cc-product-stock">Sold out</p>'}
   </div>
 </article>`;
 }
