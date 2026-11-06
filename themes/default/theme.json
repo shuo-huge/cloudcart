@@ -2,7 +2,7 @@
   "id": "default",
   "name": "Default",
   "version": "1.1.0",
-  "previewImage": "/static/themes/default.svg",
+  "previewImage": "/static/themes/theme-previews-atlas.webp",
   "description": "Premium everyday storefront with refined typography, balanced whitespace, polished product presentation and a mobile-first shopping experience.",
   "supportedPages": ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   "supportedBlocks": [
