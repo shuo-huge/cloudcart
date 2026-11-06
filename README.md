@@ -186,7 +186,7 @@ Browser
        ├─ Workers Static Assets     /static/*, /static/admin-ui/*
        └─ Worker (Hono)             /, /api/*, /admin, /media/*, /webhooks/*
             ├─ D1 (SQLite)          products, orders, pages, settings, sessions…
-            └─ R2                    product images and uploads
+            └─ optional R2           direct image uploads (HTTPS image URLs work without it)
 ```
 
 ```
