@@ -3,9 +3,9 @@ import { createTheme, type ThemeManifest } from "@cloudcart/theme-sdk";
 const manifest: ThemeManifest = {
   id: "beauty",
   name: "Beauty",
-  version: "1.0.0",
+  version: "1.1.0",
   previewImage: "/static/themes/beauty.svg",
-  description: "A soft blush palette, rounded imagery and a centred header for skincare and cosmetics.",
+  description: "Soft, premium beauty storefront with blush tones, gentle surfaces, rounded product photography and clear mobile purchase actions.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
   designTokens: [
@@ -47,6 +47,26 @@ body { background: radial-gradient(circle at 12% 8%, #fff 0%, #fff7f5 42%, #fdee
 .tk-summary { border-radius: 18px; box-shadow: 0 14px 34px rgba(58,42,42,.06); }
 .tk-field input, .tk-field select, .tk-field textarea { border-radius: 12px; }
 .tk-footer { border-top-color: #f0d8d5; background: #fffaf9; }
+/* Beauty editorial finish */
+.tk-header { box-shadow: 0 4px 24px rgba(95,54,59,.035); }
+.tk-hero--split { overflow: hidden; }
+.tk-hero--split .tk-hero-copy h1 { font-size: clamp(2.6rem, 5.5vw, 4.8rem); }
+.tk-hero--split .tk-hero-media { background: #f8e6e4; }
+.tk-section-heading h2 { font-style: italic; }
+.tk-card-media { background: #f8e9e7; }
+.tk-card-title { font-size: .96rem; }
+.tk-card-price { color: #9c5965; }
+.tk-pdp-media-main { background: linear-gradient(145deg,#fff,#f8e8e6); }
+.tk-pdp-info h1 { line-height: 1.08; }
+.tk-pdp-info .tk-btn { box-shadow: 0 8px 22px rgba(194,107,122,.2); }
+.tk-mobile-buybar { border-color: #f0d8d5; }
+.tk-footer { background: #fffaf9; }
+@media (max-width: 760px) {
+  .tk-hero--split .tk-hero-copy { padding: 28px 20px 34px; }
+  .tk-hero--split .tk-hero-copy h1 { font-size: clamp(2.25rem, 9vw, 3.4rem); }
+  .tk-pdp-media-main { aspect-ratio: 1 / 1.08; }
+}
+
 `;
 
 export const theme = createTheme({
