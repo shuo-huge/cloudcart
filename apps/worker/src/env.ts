@@ -1,6 +1,7 @@
 export interface Env {
   DB: D1Database;
-  MEDIA: R2Bucket;
+  /** Optional object storage. External image URLs work without R2. */
+  MEDIA?: R2Bucket;
   ASSETS: Fetcher;
   /** Worker secret. Used for session signatures and payment-secret encryption. */
   APP_MASTER_KEY: string;
