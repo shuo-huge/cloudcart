@@ -5,7 +5,7 @@
 - A Cloudflare account on the **Free** plan.
 - Node.js 20+, pnpm 10+.
 - Wrangler authenticated: `npx wrangler login`.
-- Permission to create Workers, D1 and R2 resources.
+- Permission to create Workers and D1 resources. R2 is optional.
 
 ## 2. One-click deployment (Cloudflare button)
 
@@ -46,8 +46,7 @@ pnpm run deploy:cloudflare -- --skip-build   # reuse existing dist/
 The script (`scripts/deploy.mjs`):
 1. checks Node, Wrangler and Cloudflare authentication;
 2. finds or creates a D1 database (never duplicates an existing one);
-3. finds or creates an R2 bucket;
-4. writes Worker name, D1 id and R2 bucket into `wrangler.jsonc`;
+3. writes Worker name and D1 id into `wrangler.jsonc`;
 5. builds the storefront and admin bundles;
 6. applies remote D1 migrations;
 7. deploys the Worker;
@@ -75,9 +74,8 @@ pnpm build
 
 npx wrangler d1 list
 npx wrangler d1 create cloudcart            # only if missing
-npx wrangler r2 bucket create cloudcart-media # only if missing
 
-# put the returned database_id and bucket name into wrangler.jsonc
+# put the returned database_id into wrangler.jsonc
 
 npx wrangler secret put APP_MASTER_KEY      # 32+ random chars
 npx wrangler secret put SETUP_TOKEN         # random one-time token
@@ -105,7 +103,7 @@ pnpm run deploy:cloudflare
 ```
 
 - New migrations are applied before deployment.
-- Existing D1 data and R2 objects are untouched.
+- Existing D1 data is untouched. R2 objects are not used by the default deployment.
 - Secrets are preserved.
 - If you add a plugin or theme, rebuild and redeploy; it will appear in the admin.
 
@@ -115,8 +113,7 @@ pnpm run deploy:cloudflare
 # Database
 npx wrangler d1 export cloudcart --remote --output backup-YYYYMMDD.sql
 
-# Media (per object; use the dashboard or your own script)
-npx wrangler r2 object get cloudcart-media/media/2026/11/<file> --file <local-path>
+
 ```
 
 Back up `.cloudcart/deploy.json` separately and securely.
@@ -127,16 +124,15 @@ Back up `.cloudcart/deploy.json` separately and securely.
 npx wrangler d1 execute cloudcart --remote --file backup-YYYYMMDD.sql
 ```
 
-Restore R2 objects with `wrangler r2 object put`. Test restores against a separate Worker/D1/R2 first.
+R2 is optional. If you enable it later, back up and restore its objects separately.
 
 ## 9. Multiple independent stores
 
 Each deployment should use distinct resource names, e.g.:
 - Worker `cloudcart-fashion`
 - D1 `cloudcart-fashion`
-- R2 `cloudcart-fashion-media`
 
-The script names the bucket `<worker>-media`. Never point two stores at the same D1 database in the
+R2 can be added later for direct file uploads. Never point two stores at the same D1 database in the
 default deployment model.
 
 ## 10. Troubleshooting
@@ -149,5 +145,5 @@ default deployment model.
 | `wrangler` says not authenticated | `npx wrangler login` |
 | Deployment fails on missing `database_id` | Run the script (it writes the id) or set it manually |
 | Webhook signature failures | Verify the exact webhook secret and endpoint URL; Stripe requires the raw body |
-| R2 upload 507 `storage_guard` | Local 80% safety threshold reached; delete media deliberately or review the guard |
+| Image upload unavailable | The default deployment uses external HTTPS image URLs. Enable R2 and add the `MEDIA` binding to allow direct uploads |
 | Old asset hashes after deploy | Assets are rebuilt by the script; ensure `dist/` is regenerated |
