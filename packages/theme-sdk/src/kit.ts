@@ -135,23 +135,23 @@ p { margin: 0 0 1em; }
 .tk-header--minimal .tk-nav { display: none; }
 .tk-header--minimal .tk-header-inner { min-height: 64px; }
 .tk-hero { position: relative; }
-.tk-hero--full { min-height: clamp(440px, 72vh, 760px); display: grid; place-items: center; text-align: center; color: #fff; overflow: hidden; }
+.tk-hero--full { min-height: clamp(440px, 72vh, 760px); display: grid; place-items: center; text-align: center; color: #fff; overflow: hidden; background: linear-gradient(125deg, #1c2730 0%, #364a55 55%, #746c63 100%); }
 .tk-hero--full > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .tk-hero--full::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.52)); }
 .tk-hero-copy { position: relative; z-index: 1; max-width: 760px; padding: 60px 24px; }
 .tk-hero-copy p { font-size: 1.05rem; opacity: .9; }
 .tk-hero--split, .tk-hero--offset { display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; min-height: 540px; }
 .tk-hero--offset { position: relative; display: block; min-height: 600px; }
-.tk-hero--offset .tk-hero-media { position: absolute; inset: 0; }
+.tk-hero--offset .tk-hero-media { position: absolute; inset: 0; background: linear-gradient(135deg, var(--tk-border), var(--tk-surface)); }
 .tk-hero--offset .tk-hero-media img { width: 100%; height: 100%; object-fit: cover; }
 .tk-hero--offset .tk-hero-copy { position: relative; z-index: 2; max-width: 520px; margin: clamp(40px, 8vw, 120px); background: var(--tk-bg); padding: clamp(28px, 5vw, 56px); }
 .tk-hero--split .tk-hero-copy { display: flex; flex-direction: column; justify-content: center; padding: clamp(36px, 6vw, 90px); }
-.tk-hero--split .tk-hero-media { min-height: 420px; }
+.tk-hero--split .tk-hero-media { min-height: 420px; background: linear-gradient(135deg, var(--tk-surface), var(--tk-border)); }
 .tk-hero--split .tk-hero-media img, .tk-hero--stacked .tk-hero-media img { width: 100%; height: 100%; object-fit: cover; }
 .tk-hero--minimal { padding: clamp(70px, 12vw, 170px) 0; text-align: center; border-bottom: 1px solid var(--tk-border); }
 .tk-hero--minimal h1 { font-size: clamp(2.8rem, 8vw, 6.5rem); }
 .tk-hero--stacked { display: flex; flex-direction: column; }
-.tk-hero--stacked .tk-hero-media { aspect-ratio: 16 / 9; }
+.tk-hero--stacked .tk-hero-media { aspect-ratio: 16 / 9; background: linear-gradient(135deg, var(--tk-surface), var(--tk-border)); }
 .tk-hero--stacked .tk-hero-copy { padding: 40px 0 10px; max-width: 720px; }
 @media (max-width: 760px) { .tk-hero--split { grid-template-columns: 1fr; } .tk-hero--split .tk-hero-media { min-height: 300px; order: -1; } .tk-hero--offset .tk-hero-copy { margin: 20px; } }
 .tk-grid { display: grid; gap: 26px 20px; }
