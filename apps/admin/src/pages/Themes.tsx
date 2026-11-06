@@ -11,6 +11,7 @@ interface ThemeSettingsResponse {
 export function ThemesPage() {
   const { data, loading, error, reload } = useAsync(() => adminGet<ThemeRow[]>("/themes"));
   const [configuring, setConfiguring] = useState<ThemeRow | null>(null);
+  const [previewing, setPreviewing] = useState<ThemeRow | null>(null);
   const [tokens, setTokens] = useState<ThemeToken[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -71,18 +72,30 @@ export function ThemesPage() {
       <div class="theme-grid">
         {(data ?? []).map((theme) => (
           <article class={`theme-card${theme.active ? " theme-card--active" : ""}`} key={theme.id}>
-            <div class="theme-preview" aria-hidden="true">
-              {theme.preview_image ? (
-                <img class="theme-preview-img" src={theme.preview_image} alt="" loading="lazy" />
-              ) : (
-                <>
-                  <div class="theme-preview-bar" />
-                  <div class="theme-preview-hero" />
-                  <div class="theme-preview-grid">
-                    <span /><span /><span /><span />
-                  </div>
-                </>
-              )}
+            <div class="theme-preview">
+              <button
+                type="button"
+                class="theme-preview-trigger"
+                onClick={() => setPreviewing(theme)}
+                aria-label={`View full ${theme.name} storefront preview`}
+                title="View full storefront preview"
+              >
+                {theme.preview_image ? (
+                  <span
+                    class={`theme-preview-art theme-preview-art--${theme.id}`}
+                    style={{ backgroundImage: `url("${theme.preview_image}")` }}
+                    role="img"
+                    aria-label={`${theme.name} storefront homepage preview`}
+                  />
+                ) : (
+                  <span class="theme-preview-placeholder" aria-hidden="true">
+                    <span class="theme-preview-bar" />
+                    <span class="theme-preview-hero" />
+                    <span class="theme-preview-grid"><i /><i /><i /><i /></span>
+                  </span>
+                )}
+                <span class="theme-preview-hint">View full preview ↗</span>
+              </button>
             </div>
             <div class="theme-card-body">
               <header>
@@ -104,6 +117,26 @@ export function ThemesPage() {
           </article>
         ))}
       </div>
+
+      {previewing && (
+        <Modal title={`${previewing.name} · Storefront preview`} onClose={() => setPreviewing(null)} wide>
+          <div class="theme-preview-modal">
+            {previewing.preview_image ? (
+              <div
+                class={`theme-preview-art theme-preview-art--${previewing.id} theme-preview-art--large`}
+                style={{ backgroundImage: `url("${previewing.preview_image}")` }}
+                role="img"
+                aria-label={`Full ${previewing.name} storefront homepage preview`}
+              />
+            ) : (
+              <p class="muted">No preview image is available for this theme yet.</p>
+            )}
+          </div>
+          <p class="muted small theme-preview-caption">
+            Preview content is illustrative. Your live storefront will use your own branding, products, prices and store settings.
+          </p>
+        </Modal>
+      )}
 
       {configuring && (
         <Modal title={`Customise ${configuring.name}`} onClose={() => setConfiguring(null)} wide>
