@@ -1,3 +1,3 @@
-# Local development secrets. Copy to .dev.vars (never commit .dev.vars).
-APP_MASTER_KEY=replace-with-a-random-string-at-least-32-characters
-SETUP_TOKEN=replace-with-a-one-time-setup-token
+# No secrets need to be entered for Cloudflare deployment.
+# The deployment script generates APP_MASTER_KEY and SETUP_TOKEN automatically.
+# For local development, run: pnpm run dev:setup
