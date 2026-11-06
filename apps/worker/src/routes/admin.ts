@@ -73,7 +73,7 @@ import {
   writeAuditLog,
 } from "@cloudcart/core";
 import { FREE_TIER_LIMITS, ResourceGuard } from "@cloudcart/database";
-import { HttpError, normalizeOrderStatus, nowIso, parseMoneyInput } from "@cloudcart/shared";
+import { HttpError, newId, normalizeOrderStatus, nowIso, parseMoneyInput } from "@cloudcart/shared";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../env";
