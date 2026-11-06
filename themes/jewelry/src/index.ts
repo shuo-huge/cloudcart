@@ -4,7 +4,7 @@ const manifest: ThemeManifest = {
   id: "jewelry",
   name: "Jewelry",
   version: "1.1.0",
-  previewImage: "/static/themes/jewelry.svg",
+  previewImage: "/static/themes/theme-previews-atlas.webp",
   description: "Quiet luxury jewelry storefront with ivory surfaces, gold details, elegant typography and a refined mobile browsing experience.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
