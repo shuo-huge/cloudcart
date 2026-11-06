@@ -218,8 +218,9 @@ p { margin: 0 0 1em; }
 .cc-notice--error { border-color: #c9a29a; background: #fbf0ee; color: #7a2e20; }
 .cc-notice--success { border-color: #aabfa9; background: #f0f6ef; color: #2f5b2c; }
 .cc-footer { border-top: 1px solid var(--cc-border); padding: clamp(44px, 7vw, 80px) 0 34px; margin-top: 40px; }
-.cc-footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 32px; }
-@media (max-width: 760px) { .cc-footer-grid { grid-template-columns: 1fr; } }
+.cc-footer-grid { display: grid; grid-template-columns: 1.5fr repeat(3, minmax(0, 1fr)); gap: 32px; }
+@media (max-width: 760px) { .cc-footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .cc-footer-grid { grid-template-columns: 1fr; } }
 .cc-footer h3 { font-size: .8rem; font-family: var(--cc-font); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 14px; }
 .cc-footer a { display: block; color: var(--cc-muted); font-size: .9rem; padding: 4px 0; }
 .cc-footer-bottom { margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--cc-border); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-size: .78rem; color: var(--cc-muted); }
@@ -270,33 +271,23 @@ function header(ctx: ThemeRenderContext): string {
 }
 
 function footer(ctx: ThemeRenderContext): string {
-  const nav = ctx.navigation.map((item) => `<a href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`).join("");
-  const year = new Date().getUTCFullYear();
-  return `<footer class="cc-footer">
-  <div class="cc-container">
-    <div class="cc-footer-grid">
-      <div>
-        <a class="cc-brand" href="/">${escapeHtml(ctx.branding.name)}</a>
-        <p class="cc-muted" style="margin-top:14px;max-width:36ch">${escapeHtml(ctx.settings["footer.tagline"] || "Thoughtfully selected products, delivered with care.")}</p>
-      </div>
-      <div>
-        <h3>Shop</h3>
-        ${nav}
-        <a href="/search">Search</a>
-      </div>
-      <div>
-        <h3>Help</h3>
-        <a href="/cart">Your cart</a>
-        <a href="/checkout">Checkout</a>
-        ${ctx.settings["footer.contact"] ? `<p class="cc-muted" style="font-size:.85rem">${escapeHtml(ctx.settings["footer.contact"])}</p>` : ""}
-      </div>
-    </div>
-    <div class="cc-footer-bottom">
-      <span>© ${year} ${escapeHtml(ctx.branding.name)}. All rights reserved.</span>
-      <span>Powering secure checkout with CloudCart.</span>
-    </div>
-  </div>
-</footer>`;
+  const nav = ctx.navigation.map((item) => "<a href=\"" + escapeAttr(item.href) + "\">" + escapeHtml(item.label) + "</a>").join("");
+  const pages = ctx.footerPages ?? [];
+  const link = (slug: string) => {
+    const page = pages.find((item) => item.href === "/pages/" + slug);
+    return page ? "<a href=\"" + escapeAttr(page.href) + "\">" + escapeHtml(page.label) + "</a>" : "";
+  };
+  const service = [link("contact-us"), link("faq"), "<a href=\"/cart\">Your cart</a>"].join("");
+  const policies = [link("shipping-policy"), link("returns-refunds"), link("privacy-policy"), link("terms-of-service"), link("payment-policy")].join("");
+  const brand = "<div><a class=\"cc-brand\" href=\"/\">" + escapeHtml(ctx.branding.name) + "</a>" +
+    "<p class=\"cc-muted\" style=\"margin-top:14px;max-width:36ch\">" +
+    escapeHtml(ctx.settings["footer.tagline"] || "Thoughtfully selected products, delivered with care.") + "</p>" + link("about-us") + "</div>";
+  const body = brand + "<div><h3>Shop</h3>" + nav + "<a href=\"/search\">Search</a></div>" +
+    "<div><h3>Customer Service</h3>" + service + "</div>" +
+    (policies ? "<div><h3>Policies</h3>" + policies + "</div>" : "");
+  return "<footer class=\"cc-footer\"><div class=\"cc-container\"><div class=\"cc-footer-grid\">" + body + "</div>" +
+    "<div class=\"cc-footer-bottom\"><span>© " + new Date().getUTCFullYear() + " " + escapeHtml(ctx.branding.name) +
+    ". All rights reserved.</span><span>Powered by CloudCart</span></div></div></footer>";
 }
 
 function layout(ctx: ThemeRenderContext, body: string, options: { announcement?: string } = {}): string {
@@ -665,10 +656,14 @@ ${data.related.length > 0 ? `<section class="cc-section"><div class="cc-containe
   },
 
   renderContent(ctx: ThemeRenderContext, data: ContentData) {
-    return layout(ctx, `<div class="cc-section"><div class="cc-container"><div class="cc-rich-text">
-  <h1>${escapeHtml(data.title)}</h1>
-  ${data.bodyHtml}
-</div></div></div>`);
+    const announcement = data.page.sections.find((section) => section.enabled && section.type === "announcement-bar");
+    const sections = data.page.sections.filter((section) =>
+      section.enabled && !["announcement-bar", "header", "footer"].includes(section.type));
+    const body = sections.length
+      ? sections.map((section) => frameSection(section, renderSection(section, ctx, data))).join("")
+      : "<div class=\"cc-section\"><div class=\"cc-container\"><div class=\"cc-rich-text\"><h1>" +
+        escapeHtml(data.title) + "</h1>" + data.bodyHtml + "</div></div></div>";
+    return layout(ctx, body, { announcement: announcement ? str(announcement, "text") : (ctx.settings["announcement"] ?? "") });
   },
 
   renderNotFound(ctx: ThemeRenderContext) {

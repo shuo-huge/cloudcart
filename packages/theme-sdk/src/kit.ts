@@ -275,8 +275,11 @@ p { margin: 0 0 1em; }
 .tk-notice { border: 1px solid var(--tk-border); background: var(--tk-surface); padding: 14px 16px; border-radius: var(--tk-radius); margin-bottom: 18px; font-size: .88rem; }
 .tk-notice--error { border-color: #d6aaa1; background: #fbf0ee; color: #7d2d1e; }
 .tk-footer { border-top: 1px solid var(--tk-border); padding: clamp(40px, 6vw, 74px) 0 30px; margin-top: 24px; }
-.tk-footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 30px; }
-@media (max-width: 760px) { .tk-footer-grid { grid-template-columns: 1fr; } }
+.tk-footer-grid { display: grid; grid-template-columns: 1.5fr repeat(3, minmax(0, 1fr)); gap: 30px; }
+@media (max-width: 760px) { .tk-footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .tk-footer-grid { grid-template-columns: 1fr; } }
+.tk-footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; margin: 18px auto; }
+.tk-footer-links a { display: inline-block; }
 .tk-footer h3 { font-family: var(--tk-font); font-size: .74rem; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 12px; }
 .tk-footer a { display: block; color: var(--tk-muted); font-size: .87rem; padding: 4px 0; }
 .tk-footer--minimal { text-align: center; }
@@ -312,34 +315,32 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
 
   function footer(ctx: ThemeRenderContext): string {
     const style = config.footer ?? "columns";
-    const nav = ctx.navigation.map((item) =>
-      `<a href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`).join("");
+    const nav = ctx.navigation.map((item) => "<a href=\"" + escapeAttr(item.href) + "\">" + escapeHtml(item.label) + "</a>").join("");
+    const pages = ctx.footerPages ?? [];
+    const link = (slug: string) => {
+      const item = pages.find((page) => page.href === "/pages/" + slug);
+      return item ? "<a href=\"" + escapeAttr(item.href) + "\">" + escapeHtml(item.label) + "</a>" : "";
+    };
+    const service = [link("contact-us"), link("faq"), "<a href=\"/cart\">Your cart</a>"].join("");
+    const policies = [link("shipping-policy"), link("returns-refunds"), link("privacy-policy"), link("terms-of-service"), link("payment-policy")].join("");
+    const about = link("about-us");
+    const brand = style === "statement" ? "<div class=\"tk-footer-brand\"><a href=\"/\">" + escapeHtml(ctx.branding.name) + "</a></div>"
+      : "<a class=\"tk-brand\" href=\"/\">" + escapeHtml(ctx.branding.name) + "</a>";
+    const brandColumn = "<div>" + brand + "<p class=\"tk-muted\" style=\"margin-top:12px;max-width:38ch\">" +
+      escapeHtml(ctx.settings["footer.tagline"] || "Thoughtfully selected, delivered with care.") + "</p>" + about + "</div>";
+    const shopColumn = "<div><h3>Shop</h3>" + nav + "<a href=\"/search\">Search</a></div>";
+    const serviceColumn = "<div><h3>Customer Service</h3>" + service + "</div>";
+    const policyColumn = policies ? "<div><h3>Policies</h3>" + policies + "</div>" : "";
+    const bottom = "<div class=\"tk-footer-bottom\"><span>© " + new Date().getUTCFullYear() + " " +
+      escapeHtml(ctx.branding.name) + "</span><span>Powered by CloudCart</span></div>";
     if (style === "minimal") {
-      return `<footer class="tk-footer tk-footer--minimal"><div class="tk-container">
-        <a class="tk-brand" href="/">${escapeHtml(ctx.branding.name)}</a>
-        <div class="tk-footer-bottom"><span>© ${new Date().getUTCFullYear()} ${escapeHtml(ctx.branding.name)}</span><span>Powered by CloudCart</span></div>
-      </div></footer>`;
+      const allLinks = pages.map((item) => "<a href=\"" + escapeAttr(item.href) + "\">" + escapeHtml(item.label) + "</a>").join("");
+      return "<footer class=\"tk-footer tk-footer--minimal\"><div class=\"tk-container\">" +
+        brandColumn + "<nav class=\"tk-footer-links\" aria-label=\"Footer navigation\">" + nav + allLinks + "</nav>" + bottom + "</div></footer>";
     }
-    if (style === "statement") {
-      return `<footer class="tk-footer tk-footer--statement"><div class="tk-container">
-        <div class="tk-footer-grid">
-          <div><div class="tk-footer-brand">${escapeHtml(ctx.branding.name)}</div>
-            <p class="tk-muted" style="max-width:42ch">${escapeHtml(ctx.settings["footer.tagline"] || "Thoughtfully selected, delivered with care.")}</p></div>
-          <div><h3>Shop</h3>${nav}</div>
-          <div><h3>Help</h3><a href="/cart">Cart</a><a href="/checkout">Checkout</a><a href="/search">Search</a></div>
-        </div>
-        <div class="tk-footer-bottom"><span>© ${new Date().getUTCFullYear()} ${escapeHtml(ctx.branding.name)}</span><span>Powered by CloudCart</span></div>
-      </div></footer>`;
-    }
-    return `<footer class="tk-footer"><div class="tk-container">
-      <div class="tk-footer-grid">
-        <div><a class="tk-brand" href="/">${escapeHtml(ctx.branding.name)}</a>
-          <p class="tk-muted" style="margin-top:12px;max-width:38ch">${escapeHtml(ctx.settings["footer.tagline"] || "Thoughtfully selected, delivered with care.")}</p></div>
-        <div><h3>Shop</h3>${nav}</div>
-        <div><h3>Help</h3><a href="/cart">Cart</a><a href="/checkout">Checkout</a><a href="/search">Search</a></div>
-      </div>
-      <div class="tk-footer-bottom"><span>© ${new Date().getUTCFullYear()} ${escapeHtml(ctx.branding.name)}</span><span>Powered by CloudCart</span></div>
-    </div></footer>`;
+    return "<footer class=\"tk-footer" + (style === "statement" ? " tk-footer--statement" : "") +
+      "\"><div class=\"tk-container\"><div class=\"tk-footer-grid\">" +
+      brandColumn + shopColumn + serviceColumn + policyColumn + "</div>" + bottom + "</div></footer>";
   }
 
   function layout(ctx: ThemeRenderContext, body: string, announcement?: string): string {
@@ -714,9 +715,14 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
     },
 
     renderContent(ctx, data) {
-      return layout(ctx, `<div class="tk-section"><div class="tk-container"><div class="tk-rich-text">
-        <h1>${escapeHtml(data.title)}</h1>${data.bodyHtml}
-      </div></div></div>`);
+      const announcement = data.page.sections.find((section) => section.enabled && section.type === "announcement-bar");
+      const sections = data.page.sections.filter((section) =>
+        section.enabled && !["announcement-bar", "header", "footer"].includes(section.type));
+      const body = sections.length
+        ? sections.map((section) => frameSection(section, renderSection(section, data))).join("")
+        : "<div class=\"tk-section\"><div class=\"tk-container\"><div class=\"tk-rich-text\"><h1>" +
+          escapeHtml(data.title) + "</h1>" + data.bodyHtml + "</div></div></div>";
+      return layout(ctx, body, announcement ? str(announcement, "text") : undefined);
     },
 
     renderNotFound(ctx) {

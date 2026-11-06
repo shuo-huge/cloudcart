@@ -40,6 +40,7 @@ export interface ThemeRenderContext {
   branding: StoreBranding;
   settings: Record<string, string>;
   navigation: NavItem[];
+  footerPages?: NavItem[];
   cartCount: number;
   currentPath: string;
 }
@@ -109,7 +110,7 @@ export interface CheckoutData {
   values?: Record<string, string>;
 }
 
-export interface ContentData {
+export interface ContentData extends HomeData {
   title: string;
   bodyHtml: string;
   metaTitle: string;

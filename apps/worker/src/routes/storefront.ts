@@ -314,7 +314,7 @@ storefrontRoutes.get("/sitemap.xml", async (c) => {
   const [products, categories, pages] = await database.batch([
     database.prepare("SELECT slug, updated_at FROM products WHERE status = 'active' ORDER BY updated_at DESC LIMIT 2000"),
     database.prepare("SELECT slug, updated_at FROM categories ORDER BY position LIMIT 500"),
-    database.prepare("SELECT slug, updated_at FROM pages WHERE type = 'content' LIMIT 200"),
+    database.prepare("SELECT slug, updated_at FROM pages WHERE type = 'content' AND published_version IS NOT NULL LIMIT 200"),
   ]);
   const entries: string[] = [];
   const push = (path: string, lastmod: string | null, priority: string) => {

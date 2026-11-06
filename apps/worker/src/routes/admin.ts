@@ -835,13 +835,14 @@ adminRoutes.post("/pages/:slug/preview", async (c) => {
       settings: runtime.settings,
       origin: runtime.origin,
       cartCount: 0,
-      path: "/",
+      path: c.req.param("slug") === "home" ? "/" : "/pages/" + c.req.param("slug"),
     });
-    const page = await storefront.home(document);
+    const slug = c.req.param("slug");
+    const page = slug === "home" ? await storefront.home(document) : await storefront.content(slug, document);
     const html = renderDocument({
       title: page.title,
       description: page.description,
-      canonicalUrl: `${runtime.origin}/`,
+      canonicalUrl: runtime.origin + page.canonicalPath,
       storeName: runtime.store.name,
       locale: runtime.store.locale,
       themeCss: runtime.theme.css,
