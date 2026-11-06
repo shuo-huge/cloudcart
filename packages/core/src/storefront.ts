@@ -22,7 +22,7 @@ import type {
 } from "@cloudcart/theme-sdk";
 import { getOrCreateCart, loadCart } from "./cart";
 import { getCategoryBySlug, listCategories } from "./categories";
-import { getPublishedDocument } from "./pages";
+import { getPage, getPublishedDocument } from "./pages";
 import { getEnabledPaymentMethods } from "./payments";
 import { getPublicProductBySlug, listPublicProducts, toPublicVariants, type PublicProduct } from "./products";
 import { breadcrumbJsonLd, productJsonLd, websiteJsonLd } from "./seo";
@@ -82,6 +82,7 @@ export class Storefront {
   private categories: StorefrontCategory[] = [];
   private ctx: ThemeRenderContext;
   private navigation: NavItem[] = [];
+  private loaded = false;
 
   constructor(private readonly deps: StorefrontDeps) {
     this.ctx = {
@@ -93,13 +94,14 @@ export class Storefront {
       },
       settings: deps.settings,
       navigation: [],
+      footerPages: [],
       cartCount: deps.cartCount,
       currentPath: deps.path,
     };
   }
 
   private async loadCategories(): Promise<StorefrontCategory[]> {
-    if (this.categories.length > 0) return this.categories;
+    if (this.loaded) return this.categories;
     const rows = await listCategories(this.deps.db);
     this.categories = rows.map((row) => ({
       id: row.id,
@@ -117,6 +119,11 @@ export class Storefront {
       })),
     ];
     this.ctx.navigation = this.navigation;
+    const published = await this.deps.db.all<{ slug: string; title: string }>(
+      "SELECT slug, title FROM pages WHERE type = 'content' AND published_version IS NOT NULL ORDER BY title LIMIT 100",
+    );
+    this.ctx.footerPages = published.map((page) => ({ label: page.title, href: "/pages/" + page.slug }));
+    this.loaded = true;
     return this.categories;
   }
 
@@ -346,25 +353,47 @@ export class Storefront {
     };
   }
 
-  async content(slug: string): Promise<StorefrontPage> {
+  async content(slug: string, documentOverride?: PageDocument): Promise<StorefrontPage> {
     await this.loadCategories();
-    const document = await getPublishedDocument(this.deps.db, slug);
+    const page = await getPage(this.deps.db, slug);
+    if (!page) return this.notFound();
+    const document = documentOverride ?? await getPublishedDocument(this.deps.db, slug);
     if (!document) return this.notFound();
     const html = document.sections
       .filter((section) => section.enabled && section.type === "rich-text")
       .map((section) => sanitizeHtml(String(section.settings.text ?? ""), { allowImages: true }))
       .join("\n");
+    const requiresCatalog = document.sections.some((section) =>
+      section.enabled && ["product-grid", "featured-collection", "category-grid"].includes(section.type));
+    let products: StorefrontProduct[] = [];
+    let featuredProducts: StorefrontProduct[] = [];
+    let newArrivals: StorefrontProduct[] = [];
+    if (requiresCatalog) {
+      const [all, featured, newest] = await Promise.all([
+        listPublicProducts(this.deps.db, { page: 1, perPage: 12, sort: "newest" }),
+        listPublicProducts(this.deps.db, { page: 1, perPage: 8, featured: true, sort: "featured" }),
+        listPublicProducts(this.deps.db, { page: 1, perPage: 8, sort: "newest" }),
+      ]);
+      products = all.items.map(toStorefrontProduct);
+      featuredProducts = featured.items.map(toStorefrontProduct);
+      newArrivals = newest.items.map(toStorefrontProduct);
+    }
     const data: ContentData = {
-      title: String(document.page ?? slug),
+      page: document,
+      products,
+      categories: this.categories,
+      featuredProducts,
+      newArrivals,
+      title: page.title,
       bodyHtml: html || "<p>This page is being prepared.</p>",
-      metaTitle: String(document.page ?? slug),
-      metaDescription: stripTags(html).slice(0, 160),
+      metaTitle: page.title,
+      metaDescription: stripTags(html).slice(0, 160) || page.title,
     };
     return this.page({
       body: this.deps.theme.renderContent(this.ctx, data),
       title: data.metaTitle,
       description: data.metaDescription,
-      canonicalPath: `/pages/${slug}`,
+      canonicalPath: "/pages/" + slug,
       ogImage: null,
       jsonLd: [],
     });

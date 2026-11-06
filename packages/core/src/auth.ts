@@ -11,6 +11,7 @@ import {
 } from "@cloudcart/security";
 import { isoPlusSeconds, newId, nowIso } from "@cloudcart/shared";
 import { writeAuditLog } from "./audit";
+import { ensureDefaultContentPages } from "./pages";
 import { SETTING_KEYS, setSettings } from "./settings";
 
 export const SESSION_TTL_SECONDS = 8 * 60 * 60;
@@ -438,4 +439,5 @@ export async function seedStoreDefaults(db: Database): Promise<void> {
       ),
     ]);
   }
+  await ensureDefaultContentPages(db);
 }

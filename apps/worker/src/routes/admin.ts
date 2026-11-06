@@ -7,6 +7,7 @@ import {
   couponInputSchema,
   createCategory,
   createCoupon,
+  createContentPage,
   createProduct,
   createRate,
   createRedirect,
@@ -18,6 +19,7 @@ import {
   deleteRate,
   deleteRedirect,
   deleteZone,
+  ensureDefaultContentPages,
   getAdminProduct,
   getCustomer,
   getDashboardStats,
@@ -771,7 +773,22 @@ adminRoutes.put("/themes/:id/settings", async (c) => {
 
 adminRoutes.get("/pages", async (c) => {
   try {
+    await ensureDefaultContentPages(db(c));
     return c.json({ ok: true, data: await listPages(db(c)) });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/pages", async (c) => {
+  try {
+    const input = parse(z.object({
+      title: z.string().trim().min(1).max(140),
+      slug: z.string().trim().min(1).max(80),
+    }), await readJson(c));
+    const id = await createContentPage(db(c), input.slug, input.title);
+    await audit(c, "page.created", "page", id, { slug: input.slug });
+    return c.json({ ok: true, data: { id, slug: input.slug } }, 201);
   } catch (error) {
     return fail(c, error);
   }
@@ -833,13 +850,14 @@ adminRoutes.post("/pages/:slug/preview", async (c) => {
       settings: runtime.settings,
       origin: runtime.origin,
       cartCount: 0,
-      path: "/",
+      path: c.req.param("slug") === "home" ? "/" : "/pages/" + c.req.param("slug"),
     });
-    const page = await storefront.home(document);
+    const slug = c.req.param("slug");
+    const page = slug === "home" ? await storefront.home(document) : await storefront.content(slug, document);
     const html = renderDocument({
       title: page.title,
       description: page.description,
-      canonicalUrl: `${runtime.origin}/`,
+      canonicalUrl: runtime.origin + page.canonicalPath,
       storeName: runtime.store.name,
       locale: runtime.store.locale,
       themeCss: runtime.theme.css,

@@ -314,7 +314,7 @@ storefrontRoutes.get("/sitemap.xml", async (c) => {
   const [products, categories, pages] = await database.batch([
     database.prepare("SELECT slug, updated_at FROM products WHERE status = 'active' ORDER BY updated_at DESC LIMIT 2000"),
     database.prepare("SELECT slug, updated_at FROM categories ORDER BY position LIMIT 500"),
-    database.prepare("SELECT slug, updated_at FROM pages WHERE type = 'content' LIMIT 200"),
+    database.prepare("SELECT slug, updated_at FROM pages WHERE type = 'content' AND published_version IS NOT NULL LIMIT 200"),
   ]);
   const entries: string[] = [];
   const push = (path: string, lastmod: string | null, priority: string) => {
@@ -414,7 +414,7 @@ async function orderConfirmationBody(
       <aside class="cc-summary">
         <h2 style="font-size:1.1rem">Shipping address</h2>
         ${address ? `<p style="font-size:.9rem;line-height:1.7">${escapeHtml(address.name)}<br>${escapeHtml(address.line1)}${address.line2 ? `<br>${escapeHtml(address.line2)}` : ""}<br>${escapeHtml(address.city)}${address.state ? `, ${escapeHtml(address.state)}` : ""} ${escapeHtml(address.postal_code)}<br>${escapeHtml(address.country)}</p>` : ""}
-        <p class="cc-muted" style="font-size:.85rem">We sent a confirmation to ${escapeHtml(order.email)}.</p>
+        <p class="cc-muted" style="font-size:.85rem">Save this private order link to view updates. Email delivery is not configured.</p>
         <a class="cc-button cc-button--block" href="/products">Continue shopping</a>
       </aside>
     </div>

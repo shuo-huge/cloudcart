@@ -435,4 +435,52 @@ describe("CloudCart Milestone 1", () => {
     const revert = await json(`/api/admin/orders/${orderId!.id}/status`, "POST", { status: "refunded" }, csrfHeaders());
     expect(revert.status).toBe(409);
   });
+
+  it("seeds draft policies, previews content blocks and only links published pages", async () => {
+    await ensureSession();
+    const listResponse = await request("/api/admin/pages");
+    expect(listResponse.status).toBe(200);
+    const listed = (await listResponse.json()) as {
+      data: Array<{ slug: string; title: string; published_version: number | null }>;
+    };
+    for (const slug of ["about-us", "contact-us", "faq", "shipping-policy", "returns-refunds", "privacy-policy", "terms-of-service", "payment-policy"]) {
+      const page = listed.data.find((item) => item.slug === slug);
+      expect(page).toBeTruthy();
+    }
+
+    const newPage = await json("/api/admin/pages", "POST", { title: "Gift Guide", slug: "gift-guide" }, csrfHeaders());
+    expect([201, 409]).toContain(newPage.status);
+    const draft = {
+      version: 1,
+      page: "gift-guide",
+      sections: [
+        { id: "gift-hero", type: "hero", enabled: true, settings: { title: "Gifts for Every Day", subtitle: "Choose a favorite." } },
+        { id: "gift-text", type: "rich-text", enabled: true, settings: { title: "Curated gifts", text: "<p>Wonderful ideas for every occasion.</p>" } },
+      ],
+    };
+    const saved = await json("/api/admin/pages/gift-guide/draft", "PUT", { document: draft }, csrfHeaders());
+    expect(saved.status).toBe(200);
+    const preview = await json("/api/admin/pages/gift-guide/preview", "POST", { document: draft }, csrfHeaders());
+    expect(preview.status).toBe(200);
+    const previewHtml = await preview.text();
+    expect(previewHtml).toContain("Gifts for Every Day");
+    expect(previewHtml).toContain("Wonderful ideas for every occasion.");
+
+    const before = await request("/pages/gift-guide");
+    expect(before.status).toBe(404);
+    const sitemapBefore = await (await request("/sitemap.xml")).text();
+    expect(sitemapBefore).not.toContain("/pages/gift-guide");
+
+    const publish = await json("/api/admin/pages/gift-guide/publish", "POST", {}, csrfHeaders());
+    expect(publish.status).toBe(200);
+    const published = await request("/pages/gift-guide");
+    expect(published.status).toBe(200);
+    const html = await published.text();
+    expect(html).toContain("Gifts for Every Day");
+    expect(html).toContain("Wonderful ideas for every occasion.");
+    expect(html).toContain("Gift Guide");
+    const sitemapAfter = await (await request("/sitemap.xml")).text();
+    expect(sitemapAfter).toContain("/pages/gift-guide");
+  });
+
 });
