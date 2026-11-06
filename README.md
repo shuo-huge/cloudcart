@@ -4,7 +4,7 @@
 
 **A free, open-source, plugin-based ecommerce platform built natively for Cloudflare Workers.**
 
-One Worker · One D1 database · One R2 bucket · Zero monthly hosting bill
+One Worker · One D1 database · External image URLs · Optional R2
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
@@ -30,13 +30,13 @@ CloudCart exists because most ecommerce stacks force you to choose between payin
 | Pain point | How CloudCart fixes it |
 |---|---|
 | **Shopify-style subscriptions + paid apps** | No platform subscription. Runs inside Cloudflare Workers Free. You pay for your domain and payment-provider fees, not hosting. |
-| **VPS, MySQL, Redis, SSL, backups** | No server to patch, no database to provision. D1 and R2 are managed by Cloudflare; D1 exports give you a portable SQL backup. |
-| **SaaS lock-in and shared tenants** | Every store is its own Worker + D1 + R2 in **your** Cloudflare account. You own the data, the code, and the domain. |
+| **VPS, MySQL, Redis, SSL, backups** | No server to patch, no database to provision. D1 is managed by Cloudflare; images can use public HTTPS URLs, and R2 is optional for direct uploads. |
+| **SaaS lock-in and shared tenants** | Every store is its own Worker + D1 in **your** Cloudflare account; R2 can be added later. You own the data, the code, and the domain. |
 | **Heavy SSR frameworks exceed free CPU limits** | Hono + Preact + small string-based SSR. Every public page is still server-rendered and SEO-readable. |
 | **Expensive themes and closed page builders** | 8 structurally different bundled themes, a live three-column page editor, and a documented Theme SDK. MIT licensed. |
 | **Payment plugins that require a paid backend** | Manual payment, Stripe Checkout, and PayPal Orders v2 are bundled. Secrets are encrypted with AES-GCM. |
 | **Admin tools only in English** | The bundled Admin Language Pack adds English / 简体中文 with a runtime switcher. |
-| **Fake "one-click" demos** | Every claim here is implemented. Tests run in workerd against real D1/R2 bindings. Unfinished work is listed explicitly. |
+| **Fake "one-click" demos** | Every claim here is implemented. Tests run in workerd against D1; R2-backed uploads are optional. Unfinished work is listed explicitly. |
 
 ### How it compares
 
@@ -46,7 +46,7 @@ CloudCart exists because most ecommerce stacks force you to choose between payin
 | Hosting | Cloudflare edge | Included | VPS ($5–20+/mo) |
 | Database | D1 (SQLite), included | Vendor-managed | MySQL you maintain |
 | Data ownership | **Your Cloudflare account** | Vendor | Yours |
-| Multiple stores | One Worker + D1 + R2 per store | Plan limits / tenants | One site per install |
+| Multiple stores | One Worker + D1 per store; optional R2 | Plan limits / tenants | One site per install |
 | Themes | 8 bundled + SDK | Paid themes | Free/paid extensions |
 | Visual page editor | Built in | Built in | Third-party |
 | Open source | **MIT** | No | GPL |
@@ -57,7 +57,7 @@ CloudCart exists because most ecommerce stacks force you to choose between payin
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
-Cloudflare's Deploy button clones this repository into Workers Builds on **your** account. It reads `wrangler.jsonc`, provisions the D1 database and R2 bucket, and runs the project's `build` and `deploy` scripts.
+Cloudflare's Deploy button clones this repository into Workers Builds on **your** account. It reads `wrangler.jsonc`, provisions the D1 database, and runs the project's `build` and `deploy` scripts. R2 is not required.
 
 You will be asked for two secrets from `.dev.vars.example`:
 
@@ -84,7 +84,7 @@ CloudCart refuses to complete setup if the example placeholder values are still 
 
 After deployment, open `https://<your-worker>.workers.dev/setup` and use the `SETUP_TOKEN` to create the store owner. **There is no default admin password.** The setup screen closes permanently after the first admin is created.
 
-> **Deployment honesty:** Cloudflare's button can provision D1 and R2, but its behaviour depends on your account and the current Cloudflare feature set. If provisioning or secret setup fails, use the fully automated CLI below. CloudCart never upgrades your plan automatically.
+> **Deployment honesty:** Cloudflare's button can provision D1. R2 is optional and is not created by the default deployment. If provisioning or secret setup fails, use the fully automated CLI below. CloudCart never upgrades your plan automatically.
 
 ---
 
@@ -100,7 +100,6 @@ pnpm run deploy:cloudflare
 The CLI checks Node, Wrangler and Cloudflare login, then:
 
 1. finds or creates a D1 database,
-2. finds or creates an R2 bucket,
 3. writes the real IDs into `wrangler.jsonc`,
 4. builds the storefront and admin,
 5. applies remote migrations,
@@ -147,7 +146,7 @@ Open <http://localhost:8787/setup> and use the `SETUP_TOKEN` from `.dev.vars`.
 Server-rendered HTML for home, collections, search, product pages, cart, checkout and content pages. Meta tags, canonical URLs, Open Graph, Twitter cards, Product/Breadcrumb/Website JSON-LD, `sitemap.xml`, `robots.txt`, and 301 redirects are built in. Product names and descriptions are crawlable without JavaScript.
 
 ### Admin
-Dashboard, products and variants, categories, images (R2), orders, customers, discounts, shipping zones and rates, themes, visual page builder, plugins, payment configuration, media library, store settings, SEO redirects, audit log, and local resource estimates.
+Dashboard, products and variants, categories, external image URLs (optional R2 uploads), orders, customers, discounts, shipping zones and rates, themes, visual page builder, plugins, payment configuration, media library, store settings, SEO redirects, audit log, and local resource estimates.
 
 ### Commerce core
 Server-side revalidation of prices, stock, coupons and shipping on every checkout. Integer minor-unit money, order snapshots, atomic stock reservation with compensation, an explicit order state machine, manual payment confirmation with an audit trail, and manual shipment tracking.
