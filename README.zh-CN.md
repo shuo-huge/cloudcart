@@ -56,36 +56,11 @@
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
-点击按钮后，Cloudflare 会把仓库克隆到**你的账户**下的 Workers Builds，读取 `wrangler.jsonc`，自动创建 D1 数据库；默认不创建 R2，并执行项目的 `build`、`deploy` 脚本。
+Cloudflare 会把 CloudCart 部署到**你的账户**并创建 D1。R2 是可选的。**不需要手动生成、复制或填写任何密钥。** 部署脚本会自动生成 `APP_MASTER_KEY` 和 `SETUP_TOKEN`，将它们保存为 Worker Secret，并在成功部署日志中输出一个私密的一次性安装链接。
 
-部署前需要填写 `.dev.vars.example` 中的两个密钥：
+打开最近一次成功部署日志中的 **Setup link**。安装页面只需要填写管理员姓名、邮箱和密码。商店名称和货币使用默认值，安装后可以在后台「设置」中修改。初始化令牌已经包含在私密链接中，不会作为表单字段显示。
 
-| 密钥 | 用途 |
-|---|---|
-| `APP_MASTER_KEY` | 签名 Session、加密支付凭证。请生成足够长的随机值。 |
-| `SETUP_TOKEN` | 一次性初始化令牌，用于创建第一个管理员。 |
-
-生成方式：
-
-```bash
-openssl rand -base64 48   # APP_MASTER_KEY
-openssl rand -base64 32   # SETUP_TOKEN
-```
-
-PowerShell：
-
-```powershell
-[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
-[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-```
-
-如果仍使用示例占位密钥，CloudCart 会拒绝完成初始化。
-
-部署完成后打开 `https://<你的-worker>.workers.dev/setup`，填入 `SETUP_TOKEN` 创建店主账号。**系统没有默认管理员密码。** 初始化完成后设置页会永久关闭。
-
-> **诚实说明：** Cloudflare 的一键按钮会创建 D1；默认部署不需要 R2。如果资源创建或密钥配置失败，请使用下面的 CLI 完整部署。CloudCart 不会自动升级你的付费计划。
-
----
+创建第一个管理员后，一次性链接立即失效。如果在初始化前再次部署，请使用最新一次成功部署日志中的新链接。系统没有默认管理员密码。
 
 ## CLI 部署（推荐，最完整）
 
@@ -121,13 +96,11 @@ pnpm run deploy:cloudflare -- --check           # 只检查环境，不修改资
 
 ```bash
 pnpm install
-cp .dev.vars.example .dev.vars    # 修改两个密钥
 pnpm db:migrate:local
-pnpm build
 pnpm dev
 ```
 
-打开 <http://localhost:8787/setup>，使用 `.dev.vars` 里的 `SETUP_TOKEN` 初始化。
+`pnpm dev` 会自动在本地生成 `.dev.vars` 随机密钥，并输出一次性安装链接。已有本地密钥会被保留，不会每次启动都更换。
 
 | 地址 | 用途 |
 |---|---|
