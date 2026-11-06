@@ -12,8 +12,8 @@
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
 Cloudflare clones the repository into Workers Builds on the deployer's account, provisions the D1
-database declared in `wrangler.jsonc`, asks for the secrets listed in. R2 is optional and is not part of the default deployment.
-`.dev.vars.example`, then runs:
+database declared in `wrangler.jsonc`, asks for the secrets listed in `.dev.vars.example`, then runs.
+R2 is optional and is not part of the default deployment.
 
 ```json
 {
