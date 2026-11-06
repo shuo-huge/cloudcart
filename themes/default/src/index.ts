@@ -228,6 +228,116 @@ p { margin: 0 0 1em; }
 .cc-error { color: #a63b2a; }
 .cc-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .cc-custom-html img { margin: 0 auto; }
+/* Premium responsive layer for the default editorial theme. */
+:focus-visible { outline: 2px solid var(--cc-accent); outline-offset: 3px; }
+button, input, select, textarea { font: inherit; }
+.cc-skip-link { position: fixed; z-index: 1000; top: 10px; left: 10px; transform: translateY(-160%); padding: 12px 16px; background: var(--cc-text); color: var(--cc-bg); border-radius: 4px; }
+.cc-skip-link:focus { transform: translateY(0); }
+.cc-mobile-menu { display: none; }
+.cc-mobile-menu summary { list-style: none; cursor: pointer; }
+.cc-mobile-menu summary::-webkit-details-marker { display: none; }
+.cc-menu-icon { width: 22px; height: 18px; display: inline-flex; flex-direction: column; justify-content: space-between; }
+.cc-menu-icon i { display: block; width: 100%; height: 1.5px; background: currentColor; transition: transform .18s ease, opacity .18s ease; }
+.cc-mobile-menu[open] .cc-menu-icon i:first-child { transform: translateY(8px) rotate(45deg); }
+.cc-mobile-menu[open] .cc-menu-icon i:nth-child(2) { opacity: 0; }
+.cc-mobile-menu[open] .cc-menu-icon i:last-child { transform: translateY(-8px) rotate(-45deg); }
+.cc-mobile-menu-panel { display: none; }
+.cc-pdp-thumb { display: block; flex: 0 0 72px; width: 72px; height: 88px; padding: 0; overflow: hidden; border: 1px solid var(--cc-border); background: var(--cc-surface); border-radius: max(2px, calc(var(--cc-radius) * .6)); cursor: pointer; }
+.cc-pdp-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cc-pdp-thumb.is-active { outline: 2px solid var(--cc-accent); outline-offset: 2px; }
+.cc-mobile-buybar { display: none; }
+.cc-button:disabled { opacity: .48; cursor: not-allowed; }
+.cc-product-title a { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.cc-product-price { font-variant-numeric: tabular-nums; }
+.cc-footer a { min-height: 28px; }
+.cc-faq summary { min-height: 44px; align-items: center; }
+@media (max-width: 760px) {
+  .cc-container { width: min(var(--cc-container), 100% - 32px); }
+  .cc-section { padding-block: 46px; }
+  .cc-section--tight { padding-block: 26px; }
+  .cc-header-inner { display: grid; grid-template-columns: 44px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 66px; position: relative; }
+  .cc-header { overflow: visible; }
+  .cc-mobile-menu { display: block; position: relative; justify-self: start; }
+  .cc-mobile-menu > summary { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; }
+  .cc-mobile-menu-panel { display: block; position: absolute; top: calc(100% + 10px); left: -8px; width: min(340px, calc(100vw - 24px)); max-height: calc(100dvh - 90px); overflow: auto; padding: 12px 18px 18px; background: var(--cc-bg); color: var(--cc-text); border: 1px solid var(--cc-border); box-shadow: 0 18px 48px rgba(0,0,0,.16); border-radius: 8px; opacity: 0; visibility: hidden; transform: translateY(-6px); transition: opacity .16s ease, transform .16s ease, visibility .16s ease; }
+  .cc-mobile-menu[open] .cc-mobile-menu-panel { opacity: 1; visibility: visible; transform: translateY(0); }
+  .cc-mobile-menu-panel nav, .cc-mobile-menu-utility { display: grid; }
+  .cc-mobile-menu-panel a { display: flex; align-items: center; min-height: 48px; padding: 10px 2px; border-bottom: 1px solid var(--cc-border); font-size: .95rem; }
+  .cc-mobile-menu-panel a[aria-current="page"] { font-weight: 700; }
+  .cc-mobile-menu-utility { margin-top: 8px; }
+  .cc-mobile-menu-utility a:last-child { border-bottom: 0; }
+  .cc-brand { justify-self: center; min-width: 0; max-width: 100%; font-size: clamp(1rem, 4vw, 1.35rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cc-brand img { max-width: 112px; max-height: 30px; object-fit: contain; }
+  .cc-nav { display: none; }
+  .cc-header-actions { justify-self: end; gap: 0; font-size: .7rem; letter-spacing: .04em; white-space: nowrap; }
+  .cc-header-actions a:first-child { display: none; }
+  .cc-header-actions a:last-child { display: inline-flex; align-items: center; min-height: 44px; }
+  .cc-product-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 22px 12px; }
+  .cc-product-media { aspect-ratio: 4 / 5; }
+  .cc-product-info { padding-top: 9px; }
+  .cc-product-title { font-size: .86rem; line-height: 1.35; }
+  .cc-product-price { font-size: .84rem; }
+  .cc-hero { min-height: min(72vh, 620px); }
+  .cc-hero-inner { padding: 36px 20px; }
+  .cc-hero h1 { font-size: clamp(2.25rem, 10vw, 3.5rem); }
+  .cc-hero p { font-size: .98rem; }
+  .cc-image-text { grid-template-columns: 1fr; gap: 22px; }
+  .cc-image-text--reverse .cc-image-text-media { order: 0; }
+  .cc-newsletter { padding: 26px 18px; }
+  .cc-newsletter form { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  .cc-newsletter form .cc-button { width: 100%; }
+  .cc-pdp { grid-template-columns: minmax(0,1fr); gap: 24px; }
+  .cc-pdp-info { position: static; }
+  .cc-pdp-gallery-main { aspect-ratio: 1 / 1; }
+  .cc-pdp-gallery-main img { object-fit: contain; }
+  .cc-pdp-thumbs { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 3px 3px 8px; scroll-snap-type: x mandatory; }
+  .cc-pdp-thumb { scroll-snap-align: start; flex-basis: 64px; width: 64px; height: 78px; }
+  .cc-pdp-info h1 { font-size: clamp(1.8rem, 7vw, 2.45rem); }
+  .cc-options { margin: 16px 0; }
+  .cc-field input, .cc-field select, .cc-field textarea { min-height: 50px; }
+  .cc-pdp-info [data-add-to-cart]:not([data-sticky-add-to-cart]) { min-height: 52px; }
+  .cc-mobile-buybar { display: flex; position: fixed; z-index: 70; inset: auto 0 0; align-items: center; justify-content: space-between; gap: 12px; padding: 10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: var(--cc-bg); color: var(--cc-text); border-top: 1px solid var(--cc-border); box-shadow: 0 -10px 30px rgba(0,0,0,.09); transform: translateY(110%); visibility: hidden; transition: transform .2s ease, visibility .2s ease; }
+  .cc-mobile-buybar.is-visible { transform: translateY(0); visibility: visible; }
+  .cc-mobile-buybar-copy { display: grid; min-width: 0; gap: 2px; font-size: .8rem; }
+  .cc-mobile-buybar-copy strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 600; }
+  .cc-mobile-buybar-copy span { color: var(--cc-muted); font-variant-numeric: tabular-nums; }
+  .cc-mobile-buybar .cc-button { min-height: 46px; flex: 0 0 auto; padding-inline: 18px; font-size: .72rem; }
+  .cc-toolbar { align-items: stretch; }
+  .cc-toolbar form { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+  .cc-toolbar form input[type="search"], .cc-toolbar form .cc-button { grid-column: 1 / -1; }
+  .cc-toolbar input, .cc-toolbar select { min-width: 0; width: 100%; min-height: 46px; }
+  .cc-chips { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 2px 2px 8px; }
+  .cc-chip { flex: 0 0 auto; min-height: 38px; display: inline-flex; align-items: center; }
+  .cc-cart-layout, .cc-checkout { grid-template-columns: minmax(0,1fr); gap: 22px; }
+  .cc-cart-line { grid-template-columns: 76px minmax(0,1fr); gap: 12px; padding: 16px 0; }
+  .cc-cart-line img { width: 76px; height: 92px; }
+  .cc-cart-line > div:last-child { grid-column: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left !important; min-width: 0; }
+  .cc-cart-line > div:last-child p { margin: 0 !important; font-weight: 600; }
+  .cc-qty button { width: 40px; height: 42px; }
+  .cc-qty input { width: 44px; height: 42px; }
+  .cc-summary { position: static; padding: 20px; }
+  .cc-coupon { display: grid; grid-template-columns: minmax(0,1fr) auto; }
+  .cc-coupon input { min-width: 0; min-height: 46px; }
+  .cc-form-grid { grid-template-columns: 1fr; gap: 8px; }
+  .cc-footer { padding: 42px 0 calc(26px + env(safe-area-inset-bottom)); }
+  .cc-footer-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 24px 18px; }
+  .cc-footer-grid > div:first-child { grid-column: 1 / -1; }
+  .cc-footer-bottom { margin-top: 26px; gap: 8px; flex-direction: column; }
+}
+@media (max-width: 380px) {
+  .cc-container { width: calc(100% - 28px); }
+  .cc-brand { font-size: .96rem; }
+  .cc-product-grid { gap: 18px 10px; }
+  .cc-product-title { font-size: .82rem; }
+  .cc-mobile-buybar { gap: 8px; }
+  .cc-mobile-buybar .cc-button { padding-inline: 12px; }
+  .cc-footer-grid { grid-template-columns: 1fr; }
+  .cc-footer-grid > div:first-child { grid-column: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
 `;
 
 interface ItemSettings {
@@ -258,8 +368,17 @@ function header(ctx: ThemeRenderContext): string {
   const nav = ctx.navigation
     .map((item) => `<a href="${escapeAttr(item.href)}"${ctx.currentPath === item.href ? ' aria-current="page"' : ""}>${escapeHtml(item.label)}</a>`)
     .join("");
+  const mobileNav = ctx.navigation.map((item) =>
+    `<a href="${escapeAttr(item.href)}"${ctx.currentPath === item.href ? ' aria-current="page"' : ""}>${escapeHtml(item.label)}</a>`).join("");
   return `<header class="cc-header">
   <div class="cc-container cc-header-inner">
+    <details class="cc-mobile-menu">
+      <summary aria-label="Open navigation menu"><span class="cc-menu-icon" aria-hidden="true"><i></i><i></i><i></i></span><span class="cc-sr-only">Menu</span></summary>
+      <div class="cc-mobile-menu-panel">
+        <nav aria-label="Mobile navigation">${mobileNav}</nav>
+        <div class="cc-mobile-menu-utility"><a href="/search">Search products</a><a href="/cart">Cart (<span data-cart-count>${ctx.cartCount}</span>)</a></div>
+      </div>
+    </details>
     <a class="cc-brand" href="/">${logo}<span>${escapeHtml(ctx.branding.name)}</span></a>
     <nav class="cc-nav" aria-label="Main navigation">${nav}</nav>
     <div class="cc-header-actions">
@@ -294,7 +413,7 @@ function layout(ctx: ThemeRenderContext, body: string, options: { announcement?:
   const announcement = options.announcement
     ? `<div class="cc-announcement">${escapeHtml(options.announcement)}</div>`
     : "";
-  return `${announcement}${header(ctx)}<main id="main">${body}</main>${footer(ctx)}`;
+  return `<a class="cc-skip-link" href="#main">Skip to content</a>${announcement}${header(ctx)}<main id="main">${body}</main>${footer(ctx)}`;
 }
 
 function productGrid(products: StorefrontProduct[], ctx: ThemeRenderContext): string {
@@ -495,8 +614,8 @@ export const theme: ThemeDefinition = {
   ${breadcrumbs}
   <div class="cc-pdp">
     <div>
-      <div class="cc-pdp-gallery-main">${mainImage ? `<img src="${escapeAttr(mainImage)}" alt="${escapeAttr(data.images[0]?.alt || product.name)}" fetchpriority="high">` : ""}</div>
-      ${data.images.length > 1 ? `<div class="cc-pdp-thumbs">${data.images.slice(0, 6).map((image) => `<img src="${escapeAttr(image.url)}" alt="${escapeAttr(image.alt || product.name)}" loading="lazy">`).join("")}</div>` : ""}
+      <div class="cc-pdp-gallery-main">${mainImage ? `<img data-product-main-image src="${escapeAttr(mainImage)}" alt="${escapeAttr(data.images[0]?.alt || product.name)}" fetchpriority="high">` : ""}</div>
+      ${data.images.length > 1 ? `<div class="cc-pdp-thumbs" aria-label="Product images">${data.images.slice(0, 8).map((image, index) => `<button type="button" class="cc-pdp-thumb${index === 0 ? " is-active" : ""}" data-gallery-image data-image-url="${escapeAttr(image.url)}" data-image-alt="${escapeAttr(image.alt || product.name)}" aria-label="View product image ${index + 1}" aria-pressed="${index === 0 ? "true" : "false"}"><img src="${escapeAttr(image.url)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
     </div>
     <div class="cc-pdp-info">
       <h1>${escapeHtml(product.name)}</h1>
@@ -510,6 +629,10 @@ export const theme: ThemeDefinition = {
       <p class="cc-muted" data-cart-message style="margin-top:10px;font-size:.85rem"></p>
       <div class="cc-description">${data.descriptionHtml}</div>
     </div>
+  </div>
+  <div class="cc-mobile-buybar" data-sticky-product-bar aria-hidden="true">
+    <div class="cc-mobile-buybar-copy"><strong>${escapeHtml(product.name)}</strong><span>${formatMoney(product.priceCents, product.currency)}</span></div>
+    <button class="cc-button" type="button" data-add-to-cart data-sticky-add-to-cart data-product-id="${escapeAttr(product.id)}" ${product.inStock ? "" : "disabled"}>Add to cart</button>
   </div>
 </div></div>
 ${data.related.length > 0 ? `<section class="cc-section"><div class="cc-container">${sectionHeading("You may also like")}${productGrid(data.related, ctx)}</div></section>` : ""}`);
