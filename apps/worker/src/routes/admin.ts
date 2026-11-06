@@ -208,7 +208,8 @@ adminRoutes.delete("/products/:id", async (c) => {
     const images = await database.all<{ r2_key: string }>("SELECT r2_key FROM product_images WHERE product_id = ?", [id]);
     await deleteProduct(database, id);
     if (c.req.query("deleteMedia") === "true" && images.length > 0) {
-      await c.env.MEDIA.delete(images.map((image) => image.r2_key));
+      const storedKeys = images.map((image) => image.r2_key).filter((key) => !/^https:\/\//i.test(key));
+      if (c.env.MEDIA && storedKeys.length > 0) await c.env.MEDIA.delete(storedKeys);
       await database.run(
         `DELETE FROM media WHERE r2_key IN (${images.map(() => "?").join(",")})`,
         images.map((image) => image.r2_key),
@@ -344,6 +345,10 @@ adminRoutes.get("/media", async (c) => {
 
 adminRoutes.post("/media", async (c) => {
   try {
+    const bucket = c.env.MEDIA;
+    if (!bucket) {
+      throw new HttpError(503, "uploads_disabled", "File uploads are unavailable until R2 is enabled. You can add an HTTPS image URL instead.");
+    }
     const form = await c.req.raw.formData();
     const file = form.get("file");
     if (!(file instanceof File)) throw new HttpError(400, "file_required", "Attach an image file.");
@@ -360,7 +365,7 @@ adminRoutes.post("/media", async (c) => {
       );
     }
     const alt = String(form.get("alt") ?? "");
-    const media = await storeMedia(db(c), c.env.MEDIA, file, c.get("adminId"));
+    const media = await storeMedia(db(c), bucket, file, c.get("adminId"));
     if (alt) {
       await db(c).run("UPDATE media SET alt = ? WHERE id = ?", [alt.slice(0, 300), media.id]);
       media.alt = alt;
@@ -368,6 +373,43 @@ adminRoutes.post("/media", async (c) => {
     await new ResourceGuard(db(c)).record({ r2ClassA: 1 });
     await audit(c, "media.uploaded", "media", media.id, { filename: media.filename, size: media.size_bytes });
     return c.json({ ok: true, data: media }, 201);
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/media/external", async (c) => {
+  try {
+    const body = parse(z.object({
+      url: z.string().trim().url().max(2048),
+      alt: z.string().trim().max(300).default(""),
+    }), await readJson(c));
+    const imageUrl = new URL(body.url);
+    const host = imageUrl.hostname.toLowerCase();
+    const privateHost = host === "localhost" || host.endsWith(".local") ||
+      /^(127\.|10\.|192\.168\.|169\.254\.)/.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+      host === "::1" || host === "[::1]";
+    if (imageUrl.protocol !== "https:" || imageUrl.username || imageUrl.password || privateHost) {
+      throw new HttpError(400, "invalid_image_url", "Use a public HTTPS image URL without embedded credentials.");
+    }
+    const normalizedUrl = imageUrl.toString();
+    const database = db(c);
+    const existing = await database.first<{ id: string }>("SELECT id FROM media WHERE r2_key = ?", [normalizedUrl]);
+    if (existing) {
+      if (body.alt) await database.run("UPDATE media SET alt = ? WHERE id = ?", [body.alt, existing.id]);
+      return c.json({ ok: true, data: { id: existing.id } });
+    }
+    const id = newId("med");
+    const filename = decodeURIComponent(imageUrl.pathname.split("/").pop() || imageUrl.hostname).slice(0, 200);
+    const now = nowIso();
+    await database.run(
+      `INSERT INTO media (id, r2_key, filename, content_type, size_bytes, width, height, alt, uploaded_by, created_at)
+       VALUES (?, ?, ?, 'image/external', 0, NULL, NULL, ?, ?, ?)`,
+      [id, normalizedUrl, filename, body.alt, c.get("adminId"), now],
+    );
+    await audit(c, "media.external_added", "media", id, { host: imageUrl.hostname });
+    return c.json({ ok: true, data: { id, r2_key: normalizedUrl, filename, content_type: "image/external", size_bytes: 0, alt: body.alt, created_at: now } }, 201);
   } catch (error) {
     return fail(c, error);
   }
