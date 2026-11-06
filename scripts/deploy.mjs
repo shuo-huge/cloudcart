@@ -178,7 +178,6 @@ async function main() {
     log(`  Worker name: ${workerName}`);
   }
   const dbName = state.d1Name || workerName;
-  const bucketName = state.bucketName || `${workerName}-media`;
 
   if (flags.has("--check")) {
     log("Environment check passed. No resources were changed.");
@@ -218,20 +217,6 @@ async function main() {
     console.log(`  Created ${dbName} (${dbId})`);
   }
 
-  step("Finding or creating the R2 bucket");
-  const buckets = wrangler(["r2", "bucket", "list"], { capture: true, allowFailure: true });
-  const bucketExists = buckets.stdout.split("\n").some((line) => line.trim().split(/\s+/)[0] === bucketName || line.includes(bucketName));
-  if (bucketExists) {
-    console.log(`  Using existing bucket ${bucketName}`);
-  } else {
-    console.log(`  Creating bucket ${bucketName}…`);
-    const created = wrangler(["r2", "bucket", "create", bucketName], { capture: true, allowFailure: true });
-    if (created.status !== 0 && !/already exists/i.test(created.stderr + created.stdout)) {
-      fail(`Could not create the R2 bucket.\n${created.stderr}`);
-    }
-    console.log(`  Created ${bucketName}`);
-  }
-
   step("Updating wrangler.jsonc");
   config.name = workerName;
   config.d1_databases = [{
@@ -240,9 +225,9 @@ async function main() {
     database_id: dbId,
     migrations_dir: "migrations",
   }];
-  config.r2_buckets = [{ binding: "MEDIA", bucket_name: bucketName }];
+  delete config.r2_buckets;
   writeConfig(config);
-  console.log("  Worker, D1 and R2 bindings updated.");
+  console.log("  Worker and D1 bindings updated. R2 is optional and was not provisioned.");
 
   step("Building the storefront and admin UI");
   if (flags.has("--skip-build")) {
@@ -297,7 +282,6 @@ async function main() {
     workerName,
     d1Name: dbName,
     d1Id: dbId,
-    bucketName,
     workerUrl,
     appMasterKey: masterKey,
     setupToken,
