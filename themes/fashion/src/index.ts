@@ -3,9 +3,9 @@ import { createTheme, type ThemeManifest } from "@cloudcart/theme-sdk";
 const manifest: ThemeManifest = {
   id: "fashion",
   name: "Fashion",
-  version: "1.0.0",
+  version: "1.1.0",
   previewImage: "/static/themes/fashion.svg",
-  description: "An oversized editorial layout with offset hero imagery, hairline rules and a fashion-house serif.",
+  description: "Editorial fashion storefront with oversized typography, full-bleed campaign imagery, refined product grids and a mobile-first shopping flow.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
   designTokens: [
@@ -53,6 +53,26 @@ const css = `
 .tk-footer-brand { font-size: clamp(2.6rem, 8vw, 6rem); text-transform: uppercase; letter-spacing: .02em; }
 .tk-footer h3 { letter-spacing: .18em; }
 @media (max-width: 760px) { .tk-hero--offset .tk-hero-copy { border: 0; } }
+/* Fashion house editorial finish */
+.tk-header { background: #f5f0e8; border-bottom-color: #cfc5b7; }
+.tk-brand { letter-spacing: .14em; }
+.tk-hero--offset { min-height: min(72vw, 760px); }
+.tk-hero--offset .tk-hero-copy { box-shadow: 12px 12px 0 rgba(23,19,15,.06); }
+.tk-section-heading h2 { font-weight: 500; }
+.tk-card-media { background: #e8e0d4; }
+.tk-card-body { padding-top: 13px; }
+.tk-card-title { line-height: 1.45; }
+.tk-card-price { letter-spacing: .04em; }
+.tk-pdp-media-main { background: #eee8de; }
+.tk-pdp-thumb.is-active { outline-color: #17130f; }
+.tk-footer { background: #eee8de; }
+@media (max-width: 760px) {
+  .tk-hero--offset { min-height: auto; }
+  .tk-hero--offset .tk-hero-copy { box-shadow: 6px 6px 0 rgba(23,19,15,.06); }
+  .tk-section-heading { align-items: flex-start; }
+  .tk-footer { padding-top: 36px; }
+}
+
 `;
 
 export const theme = createTheme({
