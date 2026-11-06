@@ -3,9 +3,9 @@ import { createTheme, type ThemeManifest } from "@cloudcart/theme-sdk";
 const manifest: ThemeManifest = {
   id: "single-product",
   name: "Single Product",
-  version: "1.0.0",
+  version: "1.1.0",
   previewImage: "/static/themes/single-product.svg",
-  description: "A focused one-product presentation: type-only hero, square imagery, monumental headings and a narrow measure.",
+  description: "Conversion-focused single-product storefront with a bold campaign hero, focused product story, persistent mobile purchase action and clear trust-building sections.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
   designTokens: [
@@ -51,6 +51,29 @@ body { background: #fff; }
 .tk-chip { border-color: #ddd; font-size: .7rem; }
 .tk-chip--active { background: #111; border-color: #111; }
 .tk-category-card { background: #fafafa; border-color: #eee; }
+/* Single-product conversion landing page finish */
+.tk-header { background: #fff; }
+.tk-hero--minimal { padding-block: clamp(76px, 13vw, 160px); }
+.tk-hero--minimal h1 { max-width: 11ch; text-wrap: balance; }
+.tk-hero--minimal .tk-btn { min-height: 54px; padding-inline: 34px; }
+.tk-section-heading { max-width: 760px; }
+.tk-pdp--stacked { max-width: 980px; }
+.tk-pdp--stacked .tk-pdp-media-main { aspect-ratio: 5 / 4; }
+.tk-pdp--stacked .tk-pdp-info { max-width: 620px; margin-inline: auto; }
+.tk-pdp-info h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); }
+.tk-pdp-info .tk-btn { min-height: 58px; font-size: .76rem; }
+.tk-trust { max-width: 980px; margin-inline: auto; }
+.tk-testimonials { max-width: 1100px; margin-inline: auto; }
+.tk-mobile-buybar { background: #fff; box-shadow: 0 -12px 34px rgba(0,0,0,.12); }
+.tk-mobile-buybar .tk-btn { min-height: 50px; }
+.tk-footer { background: #fafafa; }
+@media (max-width: 760px) {
+  .tk-hero--minimal { padding-block: 70px 48px; }
+  .tk-hero--minimal h1 { font-size: clamp(2.8rem, 14vw, 4.5rem); }
+  .tk-pdp--stacked .tk-pdp-media-main { aspect-ratio: 1 / 1; }
+  .tk-pdp--stacked .tk-pdp-info { max-width: none; }
+}
+
 `;
 
 export const theme = createTheme({
