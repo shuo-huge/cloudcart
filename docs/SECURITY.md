@@ -5,8 +5,7 @@
 - Single store-owner account in v1.
 - Passwords: PBKDF2-HMAC-SHA256, 100,000 iterations, 16-byte salt, 32-byte derived key, 8–1024 chars,
   must contain a letter and a number.
-- Setup requires `SETUP_TOKEN`, is allowed only when `installation_state` is absent, and becomes
-  permanently unavailable after the first administrator is created.
+- Setup requires a high-entropy one-time `SETUP_TOKEN` generated automatically by the deployment script. The token is embedded in a private setup URL (not a visible form field), accepted only before `installation_state` exists, and becomes unusable after the first administrator is created.
 - Sessions: random 32-byte secret; cookie value `sessionId.secret.HMAC`, verified with a key derived
   from `APP_MASTER_KEY` before any D1 lookup; only the token hash is stored. Cookie is HttpOnly,
   Secure on HTTPS, SameSite=Lax, 8-hour lifetime.
@@ -42,13 +41,12 @@ Admin mutations require:
 
 ## Secrets
 
-- `APP_MASTER_KEY` is a Worker Secret, never stored in D1.
+- `APP_MASTER_KEY` is generated automatically by the deployment script and stored as a Cloudflare Worker Secret, never in D1. Users do not need to create or paste it.
 - Payment credentials identified as secrets are encrypted with AES-GCM; the key is derived with
   HKDF-SHA256 from `APP_MASTER_KEY`.
 - Encrypted values are never returned to the browser (only `••••••••`), logged, or included in error
   responses.
-- The deploy script stores generated secrets in `.cloudcart/deploy.json` (gitignored). Protect that
-  file like a password store.
+- Local CLI deployments also store generated secrets in `.cloudcart/deploy.json` (gitignored). Protect that file like a password store. Workers Builds stores runtime secrets in Cloudflare and prints only the one-time setup URL in the build log.
 - Rotating `APP_MASTER_KEY` invalidates sessions and makes stored encrypted provider credentials
   undecryptable; re-enter them afterwards.
 
