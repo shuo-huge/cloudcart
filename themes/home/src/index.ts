@@ -3,9 +3,9 @@ import { createTheme, type ThemeManifest } from "@cloudcart/theme-sdk";
 const manifest: ThemeManifest = {
   id: "home",
   name: "Home",
-  version: "1.0.0",
+  version: "1.1.0",
   previewImage: "/static/themes/home.svg",
-  description: "Warm, tactile and calm: terracotta accents, wide product cards and a story-first stacked hero.",
+  description: "Warm lifestyle and homeware storefront with tactile neutral colors, spacious room imagery, calm editorial sections and effortless mobile browsing.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
   designTokens: [
@@ -55,6 +55,25 @@ body { background: #f5f1ea; background-image: radial-gradient(#e9e1d4 0.6px, tra
 .tk-chip { border-radius: 2px; background: #fffdf9; border-color: #d8cebe; }
 .tk-chip--active { background: #8c5a3c; border-color: #8c5a3c; }
 .tk-field input, .tk-field select, .tk-field textarea { background: #fffdf9; }
+/* Home & living lifestyle finish */
+.tk-header { background: #f5f1ea; }
+.tk-hero--stacked .tk-hero-media { aspect-ratio: 21 / 9; }
+.tk-hero--stacked .tk-hero-copy { max-width: 760px; }
+.tk-hero--stacked .tk-hero-copy h1 { font-size: clamp(2.6rem, 5.5vw, 4.8rem); }
+.tk-card-media { background: #e8e0d3; }
+.tk-card--wide .tk-card-media { aspect-ratio: 5 / 4; }
+.tk-card-title { font-family: var(--tk-heading-font); font-size: 1.04rem; }
+.tk-category-card { box-shadow: 0 8px 24px rgba(70,54,39,.045); }
+.tk-pdp-media-main { background: #eae4d9; }
+.tk-pdp-info { padding-top: 14px; }
+.tk-newsletter { box-shadow: 0 12px 30px rgba(70,54,39,.04); }
+.tk-footer { background: #ede7dc; }
+@media (max-width: 760px) {
+  .tk-hero--stacked .tk-hero-media { aspect-ratio: 4 / 3; }
+  .tk-hero--stacked .tk-hero-copy h1 { font-size: clamp(2.2rem, 9vw, 3.5rem); }
+  .tk-pdp-info { padding-top: 0; }
+}
+
 `;
 
 export const theme = createTheme({
