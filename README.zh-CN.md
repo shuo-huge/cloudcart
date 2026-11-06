@@ -4,7 +4,7 @@
 
 **免费、开源、插件化的电商系统，原生运行在 Cloudflare Workers 上。**
 
-一个 Worker · 一个 D1 数据库 · 一个 R2 存储桶 · 每月托管费用 0 元
+一个 Worker · 一个 D1 数据库 · 图片支持外链 · R2 可选
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
@@ -29,13 +29,13 @@
 | 痛点 | CloudCart 的做法 |
 |---|---|
 | **Shopify 式月费 + 付费插件** | 没有平台订阅费。运行在 Cloudflare Workers Free 上，你只需要付域名和支付渠道手续费。 |
-| **VPS、MySQL、Redis、SSL、备份** | 没有服务器要维护。D1 和 R2 由 Cloudflare 托管，D1 可随时导出 SQL 备份。 |
-| **SaaS 锁定、多租户共享数据** | 每个商城都是你自己 Cloudflare 账户里的独立 Worker + D1 + R2。数据、代码、域名都归你。 |
+| **VPS、MySQL、Redis、SSL、备份** | 没有服务器要维护。D1 由 Cloudflare 托管，图片可使用公开 HTTPS 外链；需要文件上传时再选配 R2。 |
+| **SaaS 锁定、多租户共享数据** | 每个商城都是你自己 Cloudflare 账户里的独立 Worker + D1；R2 可按需接入。数据、代码、域名都归你。 |
 | **重型 SSR 框架超出免费 CPU 限制** | Hono + Preact + 轻量字符串渲染，页面依然服务端渲染、SEO 可读。 |
 | **主题和页面编辑器贵且封闭** | 8 套结构不同的内置主题、三栏可视化编辑器、完整 Theme SDK，MIT 开源。 |
 | **支付插件依赖付费后端** | 内置人工支付、Stripe Checkout、PayPal Orders v2，密钥使用 AES-GCM 加密。 |
 | **后台只有英文** | 内置 Admin Language Pack，支持 English / 简体中文，可运行时切换。 |
-| **假“一键部署”** | 这里列出的功能都真实实现。测试在 workerd 中连接真实 D1/R2 运行；未完成项明确列出。 |
+| **假“一键部署”** | 这里列出的功能都真实实现。测试在 workerd 中连接 D1 运行；R2 文件上传为可选能力，未完成项明确列出。 |
 
 ### 和常见方案对比
 
@@ -45,7 +45,7 @@
 | 托管 | Cloudflare 边缘网络 | 包含 | VPS（$5–20+/月） |
 | 数据库 | D1（SQLite），包含 | 平台托管 | 自己维护 MySQL |
 | 数据归属 | **你的 Cloudflare 账户** | 平台 | 自己 |
-| 多商城 | 每店独立 Worker + D1 + R2 | 套餐/租户限制 | 每站点独立安装 |
+| 多商城 | 每店独立 Worker + D1，R2 可选 | 套餐/租户限制 | 每站点独立安装 |
 | 主题 | 8 套内置 + SDK | 多为付费 | 免费/付费扩展 |
 | 可视化编辑器 | 内置 | 内置 | 第三方 |
 | 开源 | **MIT** | 否 | GPL |
@@ -56,7 +56,7 @@
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
-点击按钮后，Cloudflare 会把仓库克隆到**你的账户**下的 Workers Builds，读取 `wrangler.jsonc`，自动创建 D1 数据库和 R2 存储桶，并执行项目的 `build`、`deploy` 脚本。
+点击按钮后，Cloudflare 会把仓库克隆到**你的账户**下的 Workers Builds，读取 `wrangler.jsonc`，自动创建 D1 数据库；默认不创建 R2，并执行项目的 `build`、`deploy` 脚本。
 
 部署前需要填写 `.dev.vars.example` 中的两个密钥：
 
@@ -83,7 +83,7 @@ PowerShell：
 
 部署完成后打开 `https://<你的-worker>.workers.dev/setup`，填入 `SETUP_TOKEN` 创建店主账号。**系统没有默认管理员密码。** 初始化完成后设置页会永久关闭。
 
-> **诚实说明：** Cloudflare 的一键按钮可以自动创建 D1/R2，但实际行为取决于你的账户和当前 Cloudflare 功能。如果资源创建或密钥配置失败，请使用下面的 CLI 完整部署。CloudCart 不会自动升级你的付费计划。
+> **诚实说明：** Cloudflare 的一键按钮会创建 D1；默认部署不需要 R2。如果资源创建或密钥配置失败，请使用下面的 CLI 完整部署。CloudCart 不会自动升级你的付费计划。
 
 ---
 
@@ -99,7 +99,6 @@ pnpm run deploy:cloudflare
 脚本会依次检查 Node、Wrangler 和 Cloudflare 登录状态，然后：
 
 1. 查找或创建 D1 数据库；
-2. 查找或创建 R2 存储桶；
 3. 把真实 ID 写入 `wrangler.jsonc`；
 4. 构建前台和后台；
 5. 执行远程数据库迁移；
@@ -146,7 +145,7 @@ pnpm dev
 首页、分类、搜索、商品详情、购物车、结账、订单确认、内容页全部服务端渲染。内置 Meta 标签、Canonical、Open Graph、Twitter Card、商品/面包屑/网站 JSON-LD、`sitemap.xml`、`robots.txt`、301 重定向。不依赖 JavaScript 也能被抓取商品名称和描述。
 
 ### 后台
-Dashboard、商品与规格、分类、图片（R2）、订单、客户、优惠券、配送区域与运费、主题、可视化页面编辑器、插件、支付配置、媒体库、店铺设置、SEO 重定向、审计日志、资源用量估算。
+Dashboard、商品与规格、分类、图片外链（R2 文件上传可选）、订单、客户、优惠券、配送区域与运费、主题、可视化页面编辑器、插件、支付配置、媒体库、店铺设置、SEO 重定向、审计日志、资源用量估算。
 
 ### 交易核心
 每次结账都在服务端重新校验价格、库存、优惠和运费。金额使用整数最小货币单位，保存订单快照，库存使用条件更新与补偿机制，订单状态机显式约束，人工确认收款记录管理员和时间，支持手动填写物流单号。
