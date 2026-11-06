@@ -2,7 +2,7 @@
 /**
  * CloudCart deployment CLI.
  *
- * Idempotent: re-running reuses the Worker, D1 database, R2 bucket and
+ * Idempotent: re-running reuses the Worker, D1 database and
  * existing secrets instead of creating new resources or overwriting data.
  *
  * Usage:
