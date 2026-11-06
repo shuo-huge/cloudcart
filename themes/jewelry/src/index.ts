@@ -3,9 +3,9 @@ import { createTheme, type ThemeManifest } from "@cloudcart/theme-sdk";
 const manifest: ThemeManifest = {
   id: "jewelry",
   name: "Jewelry",
-  version: "1.0.0",
+  version: "1.1.0",
   previewImage: "/static/themes/jewelry.svg",
-  description: "A quiet luxury layout: ivory paper, gold hairlines, centred branding and generous negative space.",
+  description: "Quiet luxury jewelry storefront with ivory surfaces, gold details, elegant typography and a refined mobile browsing experience.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
   designTokens: [
@@ -53,6 +53,27 @@ const css = `
 .tk-faq details, .tk-faq { border-color: #e7dfd1; }
 .tk-chip { border-radius: 0; border-color: #d8cfbe; text-transform: uppercase; letter-spacing: .12em; font-size: .66rem; }
 .tk-chip--active { background: #1c1a17; border-color: #1c1a17; }
+/* Fine jewelry luxury finish */
+.tk-header { background: #fbf9f4; }
+.tk-brand { letter-spacing: .24em; }
+.tk-hero--full { min-height: clamp(500px, 68vh, 720px); }
+.tk-hero--full .tk-hero-copy { max-width: 680px; outline: 1px solid rgba(255,255,255,.4); outline-offset: 8px; }
+.tk-section-heading { margin-bottom: 42px; }
+.tk-card-media { background: #f3eee4; }
+.tk-card-title { letter-spacing: .14em; }
+.tk-card-price { color: #a5844e; }
+.tk-pdp-media-main { background: #f5f1e9; }
+.tk-pdp-info { padding-top: 24px; }
+.tk-pdp-info .tk-btn { min-height: 54px; }
+.tk-mobile-buybar { background: #fbf9f4; border-color: #d8c8a9; }
+.tk-footer { background: #f5f1e9; }
+@media (max-width: 760px) {
+  .tk-hero--full { min-height: 66svh; min-height: 66vh; }
+  .tk-hero--full .tk-hero-copy { outline-offset: 4px; padding: 26px 20px; }
+  .tk-section-heading { margin-bottom: 24px; }
+  .tk-pdp-info { padding-top: 0; }
+}
+
 `;
 
 export const theme = createTheme({
