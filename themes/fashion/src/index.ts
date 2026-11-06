@@ -73,6 +73,15 @@ const css = `
   .tk-footer { padding-top: 36px; }
 }
 
+@media (max-width: 760px) {
+  .tk-header-inner { min-height: 66px; }
+  .tk-brand { font-size: 1.08rem; letter-spacing: .07em; }
+  .tk-hero--offset { min-height: auto; }
+  .tk-hero--offset .tk-hero-copy { margin: -28px 16px 0; padding: 24px 20px; }
+  .tk-pdp { grid-template-columns: minmax(0, 1fr); }
+  .tk-pdp--editorial .tk-pdp-info { position: static; top: auto; padding-top: 0; }
+}
+
 `;
 
 export const theme = createTheme({
