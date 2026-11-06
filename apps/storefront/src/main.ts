@@ -1,5 +1,5 @@
 import "./storefront.css";
-import { CartStore, bindCartButtons, bindCartPage } from "./cart";
+import { CartStore, bindCartButtons, bindCartPage, bindProductGallery, bindStickyProductBar } from "./cart";
 import { bindNewsletterForms } from "./newsletter";
 
 declare global {
@@ -13,4 +13,6 @@ window.CloudCart = { cart };
 
 bindCartButtons(cart);
 bindCartPage(cart);
+bindProductGallery();
+bindStickyProductBar();
 bindNewsletterForms();
