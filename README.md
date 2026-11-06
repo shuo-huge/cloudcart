@@ -57,36 +57,11 @@ CloudCart exists because most ecommerce stacks force you to choose between payin
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
-Cloudflare's Deploy button clones this repository into Workers Builds on **your** account. It reads `wrangler.jsonc`, provisions the D1 database, and runs the project's `build` and `deploy` scripts. R2 is not required.
+Cloudflare deploys CloudCart into **your** account and provisions D1. R2 is optional. You do not need to create or paste any secrets: the deployment script automatically generates `APP_MASTER_KEY` and `SETUP_TOKEN`, stores them as Worker secrets, and prints a private one-time setup URL in the successful deployment log.
 
-You will be asked for two secrets from `.dev.vars.example`:
+Open the **Setup link** from the latest successful deployment log. The setup page asks only for the administrator name, email and password. Store name and currency use sensible defaults and can be changed later in Admin → Settings. The setup token is carried in the private URL and is not shown as a form field.
 
-| Secret | Purpose |
-|---|---|
-| `APP_MASTER_KEY` | Signs sessions and encrypts payment credentials. Generate a long random value. |
-| `SETUP_TOKEN` | One-time token that allows the first administrator to be created. |
-
-Generate them before deploying:
-
-```bash
-openssl rand -base64 48   # APP_MASTER_KEY
-openssl rand -base64 32   # SETUP_TOKEN
-```
-
-PowerShell:
-
-```powershell
-[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
-[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-```
-
-CloudCart refuses to complete setup if the example placeholder values are still in use.
-
-After deployment, open `https://<your-worker>.workers.dev/setup` and use the `SETUP_TOKEN` to create the store owner. **There is no default admin password.** The setup screen closes permanently after the first admin is created.
-
-> **Deployment honesty:** Cloudflare's button can provision D1. R2 is optional and is not created by the default deployment. If provisioning or secret setup fails, use the fully automated CLI below. CloudCart never upgrades your plan automatically.
-
----
+The one-time link stops working after the first administrator is created. If you deploy again before installation, use the refreshed link from the latest successful deployment log. No default admin password exists.
 
 ## CLI deploy (recommended for a complete setup)
 
@@ -122,13 +97,11 @@ Requirements: Node.js 20+ and pnpm 10+.
 
 ```bash
 pnpm install
-cp .dev.vars.example .dev.vars    # edit the two values
 pnpm db:migrate:local
-pnpm build
 pnpm dev
 ```
 
-Open <http://localhost:8787/setup> and use the `SETUP_TOKEN` from `.dev.vars`.
+`pnpm dev` creates local-only random secrets in `.dev.vars` automatically and prints a one-time setup URL. Existing local secrets are preserved between runs.
 
 | URL | Purpose |
 |---|---|
