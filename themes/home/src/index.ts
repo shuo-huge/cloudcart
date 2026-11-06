@@ -4,7 +4,7 @@ const manifest: ThemeManifest = {
   id: "home",
   name: "Home",
   version: "1.1.0",
-  previewImage: "/static/themes/home.svg",
+  previewImage: "/static/themes/theme-previews-atlas.webp",
   description: "Warm lifestyle and homeware storefront with tactile neutral colors, spacious room imagery, calm editorial sections and effortless mobile browsing.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
