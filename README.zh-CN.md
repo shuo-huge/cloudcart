@@ -79,6 +79,8 @@ PowerShell：
 [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 ```
 
+如果仍使用示例占位密钥，CloudCart 会拒绝完成初始化。
+
 部署完成后打开 `https://<你的-worker>.workers.dev/setup`，填入 `SETUP_TOKEN` 创建店主账号。**系统没有默认管理员密码。** 初始化完成后设置页会永久关闭。
 
 > **诚实说明：** Cloudflare 的一键按钮可以自动创建 D1/R2，但实际行为取决于你的账户和当前 Cloudflare 功能。如果资源创建或密钥配置失败，请使用下面的 CLI 完整部署。CloudCart 不会自动升级你的付费计划。

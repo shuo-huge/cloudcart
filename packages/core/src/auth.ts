@@ -67,6 +67,15 @@ export async function setupStore(
       error: { code: "invalid_input", message: "APP_MASTER_KEY is not configured on this Worker." },
     };
   }
+  if (/^replace-with-/i.test(masterKey) || masterKey === "REPLACE_WITH_A_LONG_RANDOM_VALUE") {
+    return {
+      ok: false,
+      error: {
+        code: "invalid_input",
+        message: "APP_MASTER_KEY is still the example value. Generate a long random secret before setup.",
+      },
+    };
+  }
   if (await isInstalled(db)) {
     return { ok: false, error: { code: "already_installed", message: "This store has already been set up." } };
   }
@@ -74,6 +83,15 @@ export async function setupStore(
     return {
       ok: false,
       error: { code: "token_not_configured", message: "SETUP_TOKEN is not configured. Add it as a Worker secret and redeploy." },
+    };
+  }
+  if (/^replace-with-/i.test(expectedSetupToken) || expectedSetupToken === "REPLACE_WITH_A_RANDOM_SETUP_TOKEN") {
+    return {
+      ok: false,
+      error: {
+        code: "token_not_configured",
+        message: "SETUP_TOKEN is still the example value. Set a real one-time token before setup.",
+      },
     };
   }
   if (!constantTimeEqual(input.setupToken, expectedSetupToken)) {

@@ -80,6 +80,8 @@ PowerShell:
 [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 ```
 
+CloudCart refuses to complete setup if the example placeholder values are still in use.
+
 After deployment, open `https://<your-worker>.workers.dev/setup` and use the `SETUP_TOKEN` to create the store owner. **There is no default admin password.** The setup screen closes permanently after the first admin is created.
 
 > **Deployment honesty:** Cloudflare's button can provision D1 and R2, but its behaviour depends on your account and the current Cloudflare feature set. If provisioning or secret setup fails, use the fully automated CLI below. CloudCart never upgrades your plan automatically.
