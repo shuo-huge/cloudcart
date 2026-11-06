@@ -17,7 +17,8 @@ import { linkProps, navigate } from "../router";
 import type { Category, Product, ProductVariant } from "../types";
 
 function mediaUrl(key: string | null): string {
-  return key ? `/media/${key}` : "";
+  if (!key) return "";
+  return /^https:\/\//i.test(key) ? key : `/media/${key}`;
 }
 
 export function ProductsPage() {
