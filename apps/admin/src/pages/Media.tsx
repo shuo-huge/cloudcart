@@ -1,5 +1,5 @@
 import { useState } from "preact/hooks";
-import { adminGet, adminSend, adminUpload } from "../api";
+import { adminGet, adminSend } from "../api";
 import { ErrorBox, Loading, Pagination, toast, useAsync } from "../components";
 
 interface MediaRow {
@@ -18,28 +18,12 @@ function mediaUrl(key: string): string {
 
 export function MediaPage() {
   const [page, setPage] = useState(1);
-  const [uploading, setUploading] = useState(false);
   const [externalUrl, setExternalUrl] = useState("");
   const [addingUrl, setAddingUrl] = useState(false);
   const { data, loading, error, reload } = useAsync(
     () => adminGet<{ items: MediaRow[]; total: number }>(`/media?page=${page}&perPage=24`),
     [page],
   );
-
-  async function upload(file: File) {
-    setUploading(true);
-    try {
-      const form = new FormData();
-      form.append("file", file);
-      await adminUpload("/media", form);
-      toast("Image uploaded.");
-      reload();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Upload failed.", "error");
-    } finally {
-      setUploading(false);
-    }
-  }
 
   async function addExternalUrl(event: Event) {
     event.preventDefault();
@@ -90,20 +74,7 @@ export function MediaPage() {
           <h1>Media</h1>
           <p class="muted">Add public HTTPS image URLs now. File uploads become available if you enable R2 later.</p>
         </div>
-        <label class="button button--primary">
-          {uploading ? "Uploading…" : "Upload image"}
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
-            hidden
-            disabled={uploading}
-            onChange={(event) => {
-              const file = (event.target as HTMLInputElement).files?.[0];
-              if (file) void upload(file);
-              (event.target as HTMLInputElement).value = "";
-            }}
-          />
-        </label>
+
       </header>
       <section class="card">
         <form class="toolbar" onSubmit={addExternalUrl}>
