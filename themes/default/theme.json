@@ -1,9 +1,9 @@
 {
   "id": "default",
   "name": "Default",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "previewImage": "/static/themes/default.svg",
-  "description": "A calm, editorial storefront with generous whitespace and a warm neutral palette.",
+  "description": "Premium everyday storefront with refined typography, balanced whitespace, polished product presentation and a mobile-first shopping experience.",
   "supportedPages": ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   "supportedBlocks": [
     "announcement-bar", "hero", "image-banner", "product-grid", "featured-collection",
