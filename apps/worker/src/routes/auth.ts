@@ -83,8 +83,8 @@ authRoutes.post("/setup", async (c) => {
       email: String(body.email ?? ""),
       password: String(body.password ?? ""),
       name: String(body.name ?? ""),
-      storeName: String(body.storeName ?? ""),
-      currency: String(body.currency ?? "USD"),
+      storeName: String(body.storeName ?? c.env.STORE_NAME ?? "My Store"),
+      currency: String(body.currency ?? c.env.STORE_CURRENCY ?? "USD"),
     },
     clientIp(c.req.raw),
   );
@@ -124,9 +124,23 @@ authRoutes.get("/setup/status", async (c) => {
 export async function serverSetupPage(c: Context<AppContext>): Promise<Response> {
   const database = new Database(c.env.DB);
   if (await isInstalled(database)) return c.redirect("/admin", 302);
+
   const tokenConfigured = Boolean(c.env.SETUP_TOKEN);
+  const setupToken = c.req.query("token") ?? "";
+  const warning = !tokenConfigured
+    ? "The installation token has not been generated yet. Re-run the CloudCart deployment."
+    : !setupToken
+      ? "Open the one-time setup link printed in the CloudCart deployment log. You do not need to enter a token."
+      : null;
+
+  // The one-time token is carried in the setup URL. Never cache this page or
+  // send the token as a referrer to another origin.
+  c.header("Cache-Control", "no-store, max-age=0");
+  c.header("Referrer-Policy", "no-referrer");
+  c.header("X-Robots-Tag", "noindex, nofollow");
+
   return c.html(
-    renderSetupHtml("", tokenConfigured ? null : "SETUP_TOKEN is not configured on this Worker."),
+    renderSetupHtml("", warning, setupToken),
     tokenConfigured ? 200 : 503,
   );
 }
@@ -138,8 +152,8 @@ export async function serverSetupSubmit(c: Context<AppContext>): Promise<Respons
     email: String(form.get("email") ?? ""),
     password: String(form.get("password") ?? ""),
     name: String(form.get("name") ?? ""),
-    storeName: String(form.get("storeName") ?? ""),
-    currency: String(form.get("currency") ?? "USD"),
+    storeName: c.env.STORE_NAME ?? "My Store",
+    currency: c.env.STORE_CURRENCY ?? "USD",
   };
   const database = new Database(c.env.DB);
   const result = await setupStore(
@@ -150,7 +164,7 @@ export async function serverSetupSubmit(c: Context<AppContext>): Promise<Respons
     clientIp(c.req.raw),
   );
   if (!result.ok) {
-    return c.html(renderSetupHtml(result.error.message, null), 400);
+    return c.html(renderSetupHtml(result.error.message, null, values.setupToken), 400);
   }
   const login = await loginAdmin(database, c.env.APP_MASTER_KEY, {
     email: values.email,
@@ -164,7 +178,7 @@ export async function serverSetupSubmit(c: Context<AppContext>): Promise<Respons
   return c.redirect("/admin", 303);
 }
 
-export function renderSetupHtml(error: string, warning: string | null): string {
+export function renderSetupHtml(error: string, warning: string | null, setupToken = ""): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -194,11 +208,7 @@ export function renderSetupHtml(error: string, warning: string | null): string {
   ${error ? `<div class="error">${escapeHtml(error)}</div>` : ""}
   ${warning ? `<div class="warning">${escapeHtml(warning)}</div>` : ""}
   <form method="post" action="/setup">
-    <label for="setupToken">Setup token</label>
-    <input id="setupToken" name="setupToken" type="password" required autocomplete="off">
-    <small>Printed by the install script as SETUP_TOKEN.</small>
-    <label for="storeName">Store name</label>
-    <input id="storeName" name="storeName" required maxlength="120" value="My Store">
+    <input type="hidden" name="setupToken" value="${escapeHtml(setupToken)}">
     <label for="name">Your name</label>
     <input id="name" name="name" required maxlength="120">
     <label for="email">Email</label>
@@ -206,11 +216,7 @@ export function renderSetupHtml(error: string, warning: string | null): string {
     <label for="password">Password</label>
     <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password">
     <small>At least 8 characters and must include a letter and a number.</small>
-    <label for="currency">Store currency</label>
-    <select id="currency" name="currency">
-      ${["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "CNY", "HKD", "SGD"].map((code) => `<option value="${code}"${code === "USD" ? " selected" : ""}>${code}</option>`).join("")}
-    </select>
-    <button type="submit">Create administrator</button>
+    <button type="submit"${setupToken ? "" : " disabled"}>Create administrator</button>
   </form>
 </main>
 </body>
