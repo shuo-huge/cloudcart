@@ -185,7 +185,7 @@ PBKDF2 密码、HMAC Session、CSRF 双提交、登录限流、全部预编译 S
        ├─ Workers Static Assets     /static/*, /static/admin-ui/*
        └─ Worker (Hono)             /, /api/*, /admin, /media/*, /webhooks/*
             ├─ D1 (SQLite)          商品、订单、页面、设置、会话…
-            └─ R2                    商品图片与上传文件
+            └─ 可选 R2               直接上传图片（不启用时使用 HTTPS 图片外链）
 ```
 
 ```
