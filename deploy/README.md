@@ -6,7 +6,7 @@ The deployment entry point is `scripts/deploy.mjs`, invoked by:
 pnpm run deploy:cloudflare
 ```
 
-It discovers or creates the Cloudflare resources this store needs, updates `wrangler.jsonc`,
+It discovers or creates the Cloudflare resources this store needs (Worker and D1; R2 is optional), updates `wrangler.jsonc`,
 applies migrations, builds, deploys and creates secrets. See `docs/DEPLOYMENT.md` for the full
 procedure, custom domains, updates, backup and restore.
 
