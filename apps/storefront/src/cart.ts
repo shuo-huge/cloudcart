@@ -197,6 +197,46 @@ export function bindCartPage(cart: CartStore): void {
   });
 }
 
+/** Keep product gallery controls keyboard- and touch-friendly. */
+export function bindProductGallery(): void {
+  const mainImage = document.querySelector<HTMLImageElement>("[data-product-main-image]");
+  if (!mainImage) return;
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest<HTMLButtonElement>("[data-gallery-image]");
+    if (!button) return;
+
+    const nextUrl = button.dataset.imageUrl;
+    if (!nextUrl) return;
+    mainImage.src = nextUrl;
+    mainImage.alt = button.dataset.imageAlt ?? "";
+    document.querySelectorAll<HTMLButtonElement>("[data-gallery-image]").forEach((item) => {
+      const active = item === button;
+      item.classList.toggle("is-active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+  });
+}
+
+/** Reveal a compact add-to-cart bar after the main purchase button scrolls away. */
+export function bindStickyProductBar(): void {
+  const bar = document.querySelector<HTMLElement>("[data-sticky-product-bar]");
+  const primaryButton = document.querySelector<HTMLElement>(
+    "[data-add-to-cart]:not([data-sticky-add-to-cart])",
+  );
+  if (!bar || !primaryButton || typeof IntersectionObserver === "undefined") return;
+
+  const observer = new IntersectionObserver(([entry]) => {
+    const show = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+    bar.classList.toggle("is-visible", show);
+    bar.setAttribute("aria-hidden", String(!show));
+  }, { threshold: 0 });
+
+  observer.observe(primaryButton);
+}
+
 function updateQuantity(cart: CartStore, input: HTMLInputElement): Promise<void> {
   const itemId = input.dataset.itemId;
   if (!itemId) return Promise.resolve();
