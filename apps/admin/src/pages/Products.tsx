@@ -1,6 +1,6 @@
 import { formatDate, formatMoney, moneyToInput } from "@cloudcart/shared";
 import { useEffect, useState } from "preact/hooks";
-import { adminGet, adminSend, adminUpload } from "../api";
+import { adminGet, adminSend } from "../api";
 import {
   DataTable,
   ErrorBox,
@@ -279,27 +279,6 @@ export function ProductEditorPage({ id }: { id: string | null }) {
     }
   }
 
-  async function uploadImage(file: File) {
-    if (!id) {
-      toast("Save the product first, then add images.", "error");
-      return;
-    }
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("alt", form.name);
-      const media = await adminUpload<{ id: string }>("/media", formData);
-      await adminSend(`/products/${id}/images`, "POST", { mediaId: media.id, alt: form.name });
-      toast("Image added.");
-      await load();
-    } catch (err) {
-      toast(err instanceof Error ? err.message : "Upload failed.", "error");
-    } finally {
-      setUploading(false);
-    }
-  }
-
   async function addExternalImage() {
     if (!id || !externalImageUrl.trim()) return;
     setUploading(true);
@@ -384,19 +363,7 @@ export function ProductEditorPage({ id }: { id: string | null }) {
                       <button type="button" class="media-remove" onClick={() => removeImage(image.id)} aria-label="Remove image">×</button>
                     </figure>
                   ))}
-                  <label class="media-upload">
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
-                      hidden
-                      onChange={(event) => {
-                        const file = (event.target as HTMLInputElement).files?.[0];
-                        if (file) void uploadImage(file);
-                        (event.target as HTMLInputElement).value = "";
-                      }}
-                    />
-                    {uploading ? "Uploading…" : "+ Add image"}
-                  </label>
+
                 </div>
                 <div class="field">
                   <span class="field-label">External image URL</span>
