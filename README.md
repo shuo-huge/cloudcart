@@ -79,7 +79,7 @@ The CLI checks Node, Wrangler and Cloudflare login, then:
 4. builds the storefront and admin,
 5. applies remote migrations,
 6. deploys the Worker,
-7. creates `APP_MASTER_KEY` and `SETUP_TOKEN` if missing,
+7. preserves `APP_MASTER_KEY` and creates or refreshes the one-time setup token while the store is uninstalled,
 8. prints the store URL, admin URL and one-time setup link.
 
 Re-running is safe: existing resources and secrets are reused, and no data is overwritten.
