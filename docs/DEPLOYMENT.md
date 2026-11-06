@@ -13,7 +13,7 @@
 
 Cloudflare clones the repository into Workers Builds on the deployer's account, provisions the D1
 database declared in `wrangler.jsonc`, asks for the secrets listed in `.dev.vars.example`, then runs.
-R2 is optional and is not part of the default deployment.
+R2 is optional and is not part of the default deployment. Product images can be registered as public HTTPS URLs in the admin media library.
 
 ```json
 {
