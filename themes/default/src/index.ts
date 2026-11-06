@@ -228,6 +228,9 @@ p { margin: 0 0 1em; }
 .cc-error { color: #a63b2a; }
 .cc-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .cc-custom-html img { margin: 0 auto; }
+.cc-badge { position: absolute; top: 10px; left: 10px; z-index: 2; padding: 5px 9px; border-radius: 999px; background: var(--cc-bg); color: var(--cc-text); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; }
+.cc-badge--sale { background: #b43d32; color: #fff; }
+
 /* Premium responsive layer for the default editorial theme. */
 :focus-visible { outline: 2px solid var(--cc-accent); outline-offset: 3px; }
 button, input, select, textarea { font: inherit; }
