@@ -14,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "cloudcart",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "3ee15198-1fe3-44e3-a20d-b4822f7065cc",
       "migrations_dir": "migrations"
     }
   ],
@@ -25,7 +25,7 @@
     }
   ],
   "vars": {
-    "APP_ENV": "development",
+    "APP_ENV": "production",
     "STORE_NAME": "CloudCart",
     "STORE_CURRENCY": "USD",
     "STORE_TIMEZONE": "UTC"
