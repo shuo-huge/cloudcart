@@ -4,7 +4,7 @@ const manifest: ThemeManifest = {
   id: "sports",
   name: "Sports",
   version: "1.1.0",
-  previewImage: "/static/themes/sports.svg",
+  previewImage: "/static/themes/theme-previews-atlas.webp",
   description: "High-energy sports and outdoor storefront with bold black-and-yellow contrast, strong campaign messaging, fast-scanning product cards and thumb-friendly mobile actions.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
