@@ -53,7 +53,8 @@ export interface StorefrontPage {
 }
 
 function mediaPath(key: string | null): string | null {
-  return key ? `/media/${key}` : null;
+  if (!key) return null;
+  return /^https:\/\//i.test(key) ? key : `/media/${key}`;
 }
 
 function toStorefrontProduct(row: PublicProduct): StorefrontProduct {
@@ -168,7 +169,7 @@ export class Storefront {
     if (!detail) return this.notFound();
     const product = detail.product;
     const images = detail.images.map((image) => ({
-      url: `/media/${image.r2_key}`,
+      url: mediaPath(image.r2_key) ?? "",
       alt: image.alt || product.name,
     }));
     const primary: StorefrontProduct = toStorefrontProduct(product);
@@ -196,7 +197,7 @@ export class Storefront {
         name: product.name,
         description: product.description,
         slug: product.slug,
-        images: data.images.map((image) => `${this.deps.origin}${image.url}`),
+        images: data.images.map((image) => new URL(image.url, this.deps.origin).toString()),
         sku: null,
         priceCents: product.price_cents,
         currency: product.currency,
@@ -214,7 +215,7 @@ export class Storefront {
       title: product.name,
       description,
       canonicalPath: `/products/${product.slug}`,
-      ogImage: images[0] ? `${this.deps.origin}${images[0].url}` : null,
+      ogImage: images[0] ? new URL(images[0].url, this.deps.origin).toString() : null,
       jsonLd,
     });
   }
