@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTheme } from "@cloudcart/theme-sdk";
 import type { ProductData, ThemeRenderContext } from "@cloudcart/theme-sdk";
-import defaultTheme from "@cloudcart/theme-default";
+import defaultTheme from "../themes/default/src/index";
 
 const context: ThemeRenderContext = {
   branding: { name: "Studio Store", logoUrl: null, currency: "USD", locale: "en-US" },
