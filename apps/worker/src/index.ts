@@ -86,6 +86,7 @@ app.get("/media/*", async (c) => {
     return c.text("Not found", 404);
   }
   if (!isSafeMediaKey(key)) return c.text("Not found", 404);
+  if (!c.env.MEDIA) return c.text("Media storage is not configured.", 404);
   const object = await c.env.MEDIA.get(key);
   if (!object) return c.text("Not found", 404);
   const headers = new Headers();
