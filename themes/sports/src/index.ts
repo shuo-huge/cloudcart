@@ -3,9 +3,9 @@ import { createTheme, type ThemeManifest } from "@cloudcart/theme-sdk";
 const manifest: ThemeManifest = {
   id: "sports",
   name: "Sports",
-  version: "1.0.0",
+  version: "1.1.0",
   previewImage: "/static/themes/sports.svg",
-  description: "High-impact athletics: black and safety yellow, condensed uppercase type and image-overlay product cards.",
+  description: "High-energy sports and outdoor storefront with bold black-and-yellow contrast, strong campaign messaging, fast-scanning product cards and thumb-friendly mobile actions.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
   designTokens: [
@@ -64,6 +64,28 @@ h1, h2, h3, h4 { text-transform: uppercase; }
 .tk-footer-brand { color: #f7c600; }
 .tk-chip { border-radius: 0; border: 2px solid #0a0a0a; font-weight: 700; text-transform: uppercase; font-size: .68rem; }
 .tk-chip--active { background: #0a0a0a; color: #f7c600; }
+/* Sports performance finish */
+.tk-header { border-bottom-width: 3px; }
+.tk-hero--full { min-height: clamp(500px, 72vh, 780px); }
+.tk-hero-copy { max-width: 980px; }
+.tk-hero-copy h1 { text-wrap: balance; }
+.tk-card-media { border: 2px solid #0a0a0a; }
+.tk-card-body { padding: 12px; }
+.tk-card-title { font-weight: 800; }
+.tk-card-price { color: #0a0a0a; font-weight: 800; }
+.tk-pdp-media-main { background: #fff; border: 3px solid #0a0a0a; }
+.tk-pdp-info { padding: clamp(16px, 3vw, 30px); background: #fff; border: 3px solid #0a0a0a; }
+.tk-pdp-info .tk-btn { min-height: 56px; }
+.tk-mobile-buybar { background: #0a0a0a; color: #fff; border-top: 4px solid #f7c600; }
+.tk-mobile-buybar-copy span { color: #f7c600; }
+.tk-footer { border-top-width: 6px; }
+@media (max-width: 760px) {
+  .tk-hero--full { min-height: 62vh; }
+  .tk-hero-copy { padding: 34px 20px; }
+  .tk-hero-copy h1 { font-size: clamp(2.5rem, 12vw, 4.2rem); }
+  .tk-pdp-info { padding: 18px 14px; }
+}
+
 `;
 
 export const theme = createTheme({
