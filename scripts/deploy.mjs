@@ -256,6 +256,18 @@ async function main() {
   const urlMatch = deploy.stdout.match(/https:\/\/[^\s"'<>]+\.workers\.dev/);
   const workerUrl = urlMatch ? urlMatch[0] : `https://${workerName}.workers.dev`;
 
+  let installed = false;
+  try {
+    const statusResponse = await fetch(`${workerUrl}/api/setup/status`, { redirect: "error" });
+    if (statusResponse.ok) {
+      const status = await statusResponse.json();
+      installed = status.installed === true;
+    }
+  } catch {
+    // If the status endpoint is temporarily unavailable, preserve the safe
+    // first-install path and print a fresh one-time link.
+  }
+
   step("Configuring Worker secrets");
   const secretList = wrangler(["secret", "list", "--name", workerName], { capture: true, allowFailure: true });
   const existingSecrets = new Set(
@@ -267,15 +279,22 @@ async function main() {
   } else {
     masterKey = masterKey || randomSecret(32);
     wrangler(["secret", "put", "APP_MASTER_KEY", "--name", workerName], { input: `${masterKey}\n` });
-    console.log("  APP_MASTER_KEY created.");
+    console.log("  APP_MASTER_KEY generated and configured automatically.");
   }
+
   let setupToken = state.setupToken || null;
-  if (existingSecrets.has("SETUP_TOKEN")) {
-    console.log("  SETUP_TOKEN already exists — keeping it.");
+  if (installed) {
+    setupToken = null;
+    console.log("  Store is already installed — no setup token is needed.");
+  } else if (setupToken && existingSecrets.has("SETUP_TOKEN")) {
+    console.log("  Reusing the existing one-time setup token.");
   } else {
-    setupToken = setupToken || randomSecret(24);
+    // Workers Builds uses a fresh checkout for each build, so its local state
+    // file is not persistent. Before first installation, refresh the token and
+    // print the new private setup link in the build log.
+    setupToken = randomSecret(32);
     wrangler(["secret", "put", "SETUP_TOKEN", "--name", workerName], { input: `${setupToken}\n` });
-    console.log("  SETUP_TOKEN created.");
+    console.log("  One-time setup token generated and configured automatically.");
   }
 
   saveState({
@@ -291,11 +310,15 @@ async function main() {
   log("─────────────────────────────────────────────");
   console.log(`Store:        ${workerUrl}`);
   console.log(`Admin:        ${workerUrl}/admin`);
-  console.log(`Setup link:   ${workerUrl}/setup`);
-  console.log(`Setup token:  ${setupToken ?? "(already configured — see your previous deployment notes)"}`);
+  if (setupToken) {
+    console.log(`Setup link:   ${workerUrl}/setup?token=${encodeURIComponent(setupToken)}`);
+    console.log("Open this private one-time link to create the store owner. No technical secrets need to be entered.");
+  } else {
+    console.log(`Setup:        already complete — ${workerUrl}/admin`);
+  }
   console.log("");
-  console.log("The setup link stops working permanently once the first administrator is created.");
-  console.log(`Deployment state (including secrets) was saved to ${path.relative(ROOT, STATE_PATH)} — keep it private.`);
+  console.log("The one-time setup link stops working permanently after the first administrator is created.");
+  console.log(`Deployment state (including generated secrets) was saved to ${path.relative(ROOT, STATE_PATH)} — keep it private.`);
   log("Done.");
 }
 
