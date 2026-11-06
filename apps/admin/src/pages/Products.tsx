@@ -178,6 +178,7 @@ export function ProductEditorPage({ id }: { id: string | null }) {
   const [loading, setLoading] = useState(Boolean(id));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [externalImageUrl, setExternalImageUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showMedia, setShowMedia] = useState(false);
 
@@ -299,6 +300,25 @@ export function ProductEditorPage({ id }: { id: string | null }) {
     }
   }
 
+  async function addExternalImage() {
+    if (!id || !externalImageUrl.trim()) return;
+    setUploading(true);
+    try {
+      const media = await adminSend<{ id: string }>("/media/external", "POST", {
+        url: externalImageUrl.trim(),
+        alt: form.name,
+      });
+      await adminSend(`/products/${id}/images`, "POST", { mediaId: media.id, alt: form.name });
+      setExternalImageUrl("");
+      toast("External image added.");
+      await load();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Could not add image URL.", "error");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function removeImage(imageId: string) {
     if (!id || !window.confirm("Remove this image from the product?")) return;
     try {
@@ -378,7 +398,21 @@ export function ProductEditorPage({ id }: { id: string | null }) {
                     {uploading ? "Uploading…" : "+ Add image"}
                   </label>
                 </div>
-                <p class="muted small">JPEG, PNG, GIF, WebP or AVIF. Maximum 5 MB. SVG uploads are disabled.</p>
+                <div class="field">
+                  <span class="field-label">External image URL</span>
+                  <div class="row-actions">
+                    <input
+                      type="url"
+                      placeholder="https://example.com/product-image.jpg"
+                      value={externalImageUrl}
+                      onInput={(event) => setExternalImageUrl((event.target as HTMLInputElement).value)}
+                    />
+                    <button type="button" class="button" disabled={uploading || !externalImageUrl.trim()} onClick={() => void addExternalImage()}>
+                      {uploading ? "Adding…" : "Add URL"}
+                    </button>
+                  </div>
+                </div>
+                <p class="muted small">Use a public HTTPS image URL. File uploads require R2, which is optional.</p>
               </>
             )}
           </section>
