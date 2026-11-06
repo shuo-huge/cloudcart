@@ -15,7 +15,7 @@ passing without its output.
 |---|---|
 | `pnpm install` | dependencies installed (20 workspace projects) |
 | `pnpm typecheck` (`tsc --noEmit`) | **passed**, no diagnostics |
-| `pnpm test` | **4 test files, 24 tests passed**, ~3.7 s |
+| `pnpm test` | **5 test files, 28 tests passed**, ~4.7 s |
 | `pnpm build` | storefront + admin built successfully; asset references regenerated |
 | `wrangler deploy --dry-run --outdir .wrangler/dry` | **passed**; 22 asset files (including 8 theme preview SVGs), Worker bundle 1237.12 KiB / **225.17 KiB gzip**; D1/R2/ASSETS bindings resolved |
 | `node scripts/deploy.mjs --check` | **passed** Node/Wrangler/Cloudflare-auth checks; no resources changed |
@@ -41,7 +41,7 @@ Build output sizes:
 - HTML sanitiser removes scripts/event handlers/`javascript:` URLs, keeps safe links/images,
   escapes plain text.
 
-### `tests/commerce.test.ts` (7 tests)
+### `tests/commerce.test.ts` (8 tests)
 - One-time setup, owner authentication, `/me` session.
 - Unauthenticated admin API → 401; missing CSRF on mutation → 403.
 - End-to-end: product creation → admin list → SSR product HTML with JSON-LD → add to cart →
@@ -55,7 +55,7 @@ Build output sizes:
   allow-listed inline section styles; `<script>` in page JSON rejected; publish creates a version and
   becomes public; later draft edits do not change the published page.
 
-### `tests/payments.test.ts` (4 tests)
+### `tests/payments.test.ts` (5 tests)
 - Stripe signature verification: valid, wrong secret, stale timestamp, missing timestamp.
 - Stripe Checkout session creation (mocked API) → order stays `pending_payment` with a pending
   transaction, then a correctly signed `checkout.session.completed` marks it paid.
@@ -73,8 +73,12 @@ Build output sizes:
 - The plugin appears in `/api/admin/plugins` as type `admin`, bundled and enabled.
 - Disabling the plugin removes dictionaries and returns the admin to English.
 
-Tests run inside workerd with real D1 prepared statements and R2 bindings; provider HTTP calls are
-stubbed deterministically by replacing `globalThis.fetch` in the shared test isolate.
+### `tests/setup-page.test.ts` (3 tests)
+- The one-time setup token is carried in a hidden field, not a visible input.
+- Store name and currency are not required during first-run setup; only administrator details are collected.
+- Setup token values are HTML-escaped before being embedded in the page.
+
+Tests run inside workerd with real D1 prepared statements; provider HTTP calls are stubbed deterministically by replacing `globalThis.fetch` in the shared test isolate.
 
 ---
 
@@ -109,8 +113,7 @@ test environment; the same overlay applies to every admin page.
 
 - **Live Stripe Sandbox and PayPal Sandbox transactions.** Provider APIs are mocked; no real
   credentials or money movement were used.
-- **Real deployment to a Cloudflare account.** The deploy CLI’s non-mutating `--check` passed, but
-  no resources were created or deployed during this session.
+- **Repeatability across other Cloudflare accounts.** A real Workers Builds deployment succeeded in the maintainer's Cloudflare account, including D1 migration checks, Worker deployment and automatic secret provisioning. This does not prove that every Cloudflare account has identical permissions or quota headroom.
 - **Browser end-to-end UI tests.** No Playwright suite. In particular, SortableJS drag interaction,
   responsive admin layouts and visual appearance were not asserted by automation.
 - **R2 upload integration test.** Upload validation (magic bytes, size, SVG rejection) has unit-level
