@@ -301,8 +301,17 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
       : "";
     const nav = ctx.navigation.map((item) =>
       `<a href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a>`).join("");
+    const mobileNav = ctx.navigation.map((item) =>
+      `<a href="${escapeAttr(item.href)}"${ctx.currentPath === item.href ? ' aria-current="page"' : ""}>${escapeHtml(item.label)}</a>`).join("");
     return `<header class="tk-header tk-header--${style}">
   <div class="tk-container tk-header-inner">
+    <details class="tk-mobile-menu">
+      <summary aria-label="Open navigation menu"><span class="tk-menu-icon" aria-hidden="true"><i></i><i></i><i></i></span><span class="tk-sr-only">Menu</span></summary>
+      <div class="tk-mobile-menu-panel">
+        <nav aria-label="Mobile navigation">${mobileNav}</nav>
+        <div class="tk-mobile-menu-utility"><a href="/search">Search products</a><a href="/cart">${escapeHtml(labels.cart)} (<span data-cart-count>${ctx.cartCount}</span>)</a></div>
+      </div>
+    </details>
     <a class="tk-brand" href="/">${logo}<span>${escapeHtml(ctx.branding.name)}</span></a>
     <nav class="tk-nav" aria-label="Main navigation">${nav}</nav>
     <div class="tk-actions">
@@ -345,7 +354,7 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
 
   function layout(ctx: ThemeRenderContext, body: string, announcement?: string): string {
     const bar = announcement ? `<div class="tk-announcement">${escapeHtml(announcement)}</div>` : "";
-    return `${bar}${header(ctx)}<main id="main">${body}</main>${footer(ctx)}`;
+    return `<a class="tk-skip-link" href="#main">Skip to content</a>${bar}${header(ctx)}<main id="main">${body}</main>${footer(ctx)}`;
   }
 
   function card(product: StorefrontProduct): string {
@@ -606,7 +615,7 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
         <div class="tk-pdp tk-pdp--${config.productLayout ?? "split"}">
           <div>
             <div class="tk-pdp-media-main">${mainImage ? `<img src="${escapeAttr(mainImage)}" alt="${escapeAttr(data.images[0]?.alt || product.name)}" fetchpriority="high">` : ""}</div>
-            ${data.images.length > 1 ? `<div class="tk-pdp-thumbs">${data.images.slice(0, 6).map((image) => `<img src="${escapeAttr(image.url)}" alt="${escapeAttr(image.alt)}" loading="lazy">`).join("")}</div>` : ""}
+            ${data.images.length > 1 ? `<div class="tk-pdp-thumbs" aria-label="Product images">${data.images.slice(0, 8).map((image, index) => `<button type="button" class="tk-pdp-thumb${index === 0 ? " is-active" : ""}" data-gallery-image data-image-url="${escapeAttr(image.url)}" data-image-alt="${escapeAttr(image.alt || product.name)}" aria-label="View product image ${index + 1}" aria-pressed="${index === 0 ? "true" : "false"}"><img src="${escapeAttr(image.url)}" alt="" loading="lazy"></button>`).join("")}</div>` : ""}
           </div>
           <div class="tk-pdp-info">
             <h1>${escapeHtml(product.name)}</h1>
@@ -620,6 +629,10 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
             </div>
             <div class="tk-description">${data.descriptionHtml}</div>
           </div>
+        </div>
+        <div class="tk-mobile-buybar" data-sticky-product-bar aria-hidden="true">
+          <div class="tk-mobile-buybar-copy"><strong>${escapeHtml(product.name)}</strong><span>${formatMoney(product.priceCents, product.currency)}</span></div>
+          <button class="tk-btn" type="button" data-add-to-cart data-sticky-add-to-cart data-product-id="${escapeAttr(product.id)}" ${product.inStock ? "" : "disabled"}>${escapeHtml(labels.addToCart)}</button>
         </div>
       </div></div>
       ${data.related.length > 0 ? `<section class="tk-section"><div class="tk-container"><header class="tk-section-heading"><h2>You may also like</h2></header>${grid(data.related)}</div></section>` : ""}`);
