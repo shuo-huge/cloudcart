@@ -1,9 +1,9 @@
 {
   "id": "fashion",
   "name": "Fashion",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "previewImage": "/static/themes/fashion.svg",
-  "description": "An oversized editorial layout with offset hero imagery, hairline rules and a fashion-house serif.",
+  "description": "Editorial fashion storefront with oversized typography, full-bleed campaign imagery, refined product grids and a mobile-first shopping flow.",
   "supportedPages": ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   "supportedBlocks": ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
   "designTokens": [
