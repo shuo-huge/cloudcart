@@ -175,6 +175,7 @@ p { margin: 0 0 1em; }
 .tk-card--overlay .tk-card-title, .tk-card--overlay .tk-card-price { color: #fff; }
 .tk-price-compare { color: var(--tk-muted); margin-left: 8px; font-size: .85em; }
 .tk-badge { position: absolute; top: 10px; left: 10px; background: var(--tk-bg); color: var(--tk-text); padding: 4px 8px; font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; }
+.tk-badge--sale { background: #b43d32; color: #fff; border-color: #b43d32; }
 .tk-empty-state { text-align: center; padding: clamp(50px, 10vw, 130px) 20px; }
 .tk-empty-state p { color: var(--tk-muted); }
 .tk-image-text { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(26px, 6vw, 80px); align-items: center; }
@@ -561,8 +562,13 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
     const compare = product.compareAtPriceCents && product.compareAtPriceCents > product.priceCents
       ? `<s class="tk-price-compare">${formatMoney(product.compareAtPriceCents, product.currency)}</s>`
       : "";
+    const badge = !product.inStock
+      ? `<span class="tk-badge">${escapeHtml(labels.soldOut)}</span>`
+      : product.compareAtPriceCents && product.compareAtPriceCents > product.priceCents
+        ? '<span class="tk-badge tk-badge--sale">Sale</span>'
+        : "";
     return `<article class="tk-card tk-card--${style}">
-  <a class="tk-card-media" href="${escapeAttr(href)}">${image}${!product.inStock ? `<span class="tk-badge">${escapeHtml(labels.soldOut)}</span>` : ""}</a>
+  <a class="tk-card-media" href="${escapeAttr(href)}">${image}${badge}</a>
   <div class="tk-card-body">
     <h3 class="tk-card-title"><a href="${escapeAttr(href)}">${escapeHtml(product.name)}</a></h3>
     <p class="tk-card-price">${formatMoney(product.priceCents, product.currency)} ${compare}</p>
