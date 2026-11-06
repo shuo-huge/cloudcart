@@ -3,9 +3,9 @@ import { createTheme, type ThemeManifest } from "@cloudcart/theme-sdk";
 const manifest: ThemeManifest = {
   id: "electronics",
   name: "Electronics",
-  version: "1.0.0",
+  version: "1.1.0",
   previewImage: "/static/themes/electronics.svg",
-  description: "A dark technical storefront with cyan accents, condensed uppercase type and a dense product grid.",
+  description: "Modern technology storefront with a deep charcoal interface, precise product presentation, cyan accents and compact mobile shopping controls.",
   supportedPages: ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
   supportedBlocks: ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
   designTokens: [
@@ -63,6 +63,28 @@ h1, h2, h3, h4, .tk-card-title { text-transform: uppercase; }
 .tk-footer { background: #080a0d; border-top: 1px solid #232c36; }
 .tk-breadcrumbs { color: #7f8b98; }
 .tk-faq details, .tk-faq { border-color: #232c36; }
+/* Electronics product-led finish */
+.tk-header { background: #0d1218; }
+.tk-hero--split { min-height: 600px; }
+.tk-hero--split .tk-hero-copy h1 { font-size: clamp(2.8rem, 6vw, 5.2rem); }
+.tk-card { padding: 0 0 12px; }
+.tk-card-media { aspect-ratio: 1 / 1; }
+.tk-card-media img { object-fit: contain; padding: clamp(14px, 2vw, 28px); }
+.tk-card-body { padding: 12px 12px 0; }
+.tk-card-price { font-weight: 700; }
+.tk-pdp-media-main { aspect-ratio: 1 / 1; }
+.tk-pdp-info { border: 1px solid #232c36; background: #10161e; padding: clamp(20px, 3vw, 32px); }
+.tk-pdp-info .tk-btn { box-shadow: 0 0 0 1px rgba(56,225,255,.12), 0 10px 28px rgba(56,225,255,.08); }
+.tk-mobile-buybar { background: #0d1218; border-color: #2b3947; }
+.tk-mobile-buybar-copy span { color: #38e1ff; }
+.tk-footer { background: #080a0d; }
+@media (max-width: 760px) {
+  .tk-hero--split { min-height: auto; }
+  .tk-hero--split .tk-hero-media { aspect-ratio: 16 / 10; }
+  .tk-pdp-info { padding: 20px 16px; }
+  .tk-card-body { padding-inline: 2px; }
+}
+
 `;
 
 export const theme = createTheme({
