@@ -1,0 +1,69 @@
+:root {
+  --cc-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --cc-bg: #ffffff;
+  --cc-text: #171717;
+  --cc-muted: #6b7280;
+  --cc-accent: #111827;
+  --cc-border: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--cc-font);
+  color: var(--cc-text);
+  background: var(--cc-bg);
+  line-height: 1.5;
+}
+
+img { max-width: 100%; display: block; }
+
+a { color: inherit; }
+
+.cc-container {
+  width: min(1200px, 100% - 40px);
+  margin-inline: auto;
+}
+
+.cc-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 1px solid var(--cc-accent);
+  background: var(--cc-accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.cc-button--secondary {
+  background: transparent;
+  color: var(--cc-accent);
+}
+
+.cc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.cc-field label { font-size: 0.875rem; font-weight: 600; }
+
+.cc-field input,
+.cc-field select,
+.cc-field textarea {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--cc-border);
+  font: inherit;
+  background: #fff;
+}
+
+.cc-error { color: #b91c1c; }
+.cc-muted { color: var(--cc-muted); }

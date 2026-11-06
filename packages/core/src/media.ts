@@ -1,0 +1,154 @@
+import type { Database } from "@cloudcart/database";
+import type { MediaRow } from "@cloudcart/database";
+import { HttpError, newId, nowIso } from "@cloudcart/shared";
+
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+const ALLOWED_TYPES: Record<string, { ext: string; magic: (bytes: Uint8Array) => boolean }> = {
+  "image/jpeg": {
+    ext: "jpg",
+    magic: (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  },
+  "image/png": {
+    ext: "png",
+    magic: (b) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47,
+  },
+  "image/gif": {
+    ext: "gif",
+    magic: (b) => b.length > 4 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38,
+  },
+  "image/webp": {
+    ext: "webp",
+    magic: (b) => b.length > 12 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 &&
+      b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50,
+  },
+  "image/avif": {
+    ext: "avif",
+    magic: (b) => b.length > 12 && String.fromCharCode(...b.slice(4, 12)).includes("ftypavif"),
+  },
+};
+
+const EXTENSION_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  avif: "image/avif",
+};
+
+export function mediaUrl(r2Key: string): string {
+  return `/media/${r2Key}`;
+}
+
+export async function storeMedia(
+  db: Database,
+  bucket: R2Bucket,
+  file: File,
+  uploadedBy: string | null,
+): Promise<MediaRow> {
+  if (file.size <= 0) throw new HttpError(400, "empty_file", "The uploaded file is empty.");
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new HttpError(413, "file_too_large", "Images must be 5 MB or smaller.");
+  }
+  const declaredType = (file.type || "").toLowerCase();
+  const allowed = ALLOWED_TYPES[declaredType];
+  if (!allowed) {
+    throw new HttpError(415, "unsupported_type", "Only JPEG, PNG, GIF, WebP and AVIF images are accepted. SVG uploads are disabled.");
+  }
+  const filename = file.name || "upload";
+  const extension = filename.includes(".") ? filename.split(".").pop()!.toLowerCase() : "";
+  if (extension && EXTENSION_TYPES[extension] !== declaredType) {
+    throw new HttpError(415, "extension_mismatch", "The file extension does not match its content type.");
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!allowed.magic(bytes)) {
+    throw new HttpError(415, "content_mismatch", "The file does not look like a valid image of the declared type.");
+  }
+
+  const id = newId("med");
+  const date = new Date();
+  const key = `media/${date.getUTCFullYear()}/${String(date.getUTCMonth() + 1).padStart(2, "0")}/${id}.${allowed.ext}`;
+  await bucket.put(key, bytes, {
+    httpMetadata: {
+      contentType: declaredType,
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+    customMetadata: {
+      originalName: filename.slice(0, 200),
+    },
+  });
+
+  const now = nowIso();
+  await db.run(
+    `INSERT INTO media (id, r2_key, filename, content_type, size_bytes, width, height, alt, uploaded_by, created_at)
+     VALUES (?, ?, ?, ?, ?, NULL, NULL, '', ?, ?)`,
+    [id, key, filename.slice(0, 200), declaredType, file.size, uploadedBy, now],
+  );
+  return {
+    id,
+    r2_key: key,
+    filename: filename.slice(0, 200),
+    content_type: declaredType,
+    size_bytes: file.size,
+    width: null,
+    height: null,
+    alt: "",
+    uploaded_by: uploadedBy,
+    created_at: now,
+  };
+}
+
+export async function deleteMedia(db: Database, bucket: R2Bucket, id: string): Promise<void> {
+  const row = await db.first<{ r2_key: string }>("SELECT r2_key FROM media WHERE id = ?", [id]);
+  if (!row) throw new HttpError(404, "media_not_found", "Media not found.");
+  await bucket.delete(row.r2_key);
+  await db.run("DELETE FROM product_images WHERE r2_key = ?", [row.r2_key]);
+  await db.run("DELETE FROM media WHERE id = ?", [id]);
+}
+
+export async function attachImageToProduct(
+  db: Database,
+  productId: string,
+  mediaId: string,
+  alt: string,
+): Promise<string> {
+  const media = await db.first<MediaRow>("SELECT * FROM media WHERE id = ?", [mediaId]);
+  if (!media) throw new HttpError(404, "media_not_found", "Media not found.");
+  const product = await db.first<{ id: string }>("SELECT id FROM products WHERE id = ?", [productId]);
+  if (!product) throw new HttpError(404, "product_not_found", "Product not found.");
+  const maxPosition = await db.first<{ position: number | null }>(
+    "SELECT MAX(position) AS position FROM product_images WHERE product_id = ?",
+    [productId],
+  );
+  const imageId = newId("img");
+  await db.run(
+    `INSERT INTO product_images (id, product_id, r2_key, alt, content_type, width, height, size_bytes, position, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      imageId, productId, media.r2_key, alt.slice(0, 300), media.content_type,
+      media.width, media.height, media.size_bytes, (maxPosition?.position ?? -1) + 1, nowIso(),
+    ],
+  );
+  return imageId;
+}
+
+export async function removeProductImage(db: Database, productId: string, imageId: string): Promise<void> {
+  await db.run("DELETE FROM product_images WHERE id = ? AND product_id = ?", [imageId, productId]);
+}
+
+export async function listMedia(db: Database, page: number, perPage: number): Promise<{ items: MediaRow[]; total: number }> {
+  const [count, list] = await db.batch([
+    db.prepare("SELECT COUNT(*) AS count FROM media"),
+    db.prepare("SELECT * FROM media ORDER BY created_at DESC LIMIT ? OFFSET ?", [perPage, (page - 1) * perPage]),
+  ]);
+  return {
+    items: (list?.results ?? []) as unknown as MediaRow[],
+    total: Number((count?.results?.[0] as { count?: number } | undefined)?.count ?? 0),
+  };
+}
+
+export function isSafeMediaKey(key: string): boolean {
+  return /^media\/\d{4}\/\d{2}\/[a-z]+_[a-f0-9]+\.[a-z0-9]{2,5}$/.test(key) &&
+    !key.includes("..");
+}

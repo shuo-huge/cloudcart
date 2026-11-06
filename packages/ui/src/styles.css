@@ -1,0 +1,13 @@
+:root {
+  --adm-bg: #f6f6f7;
+  --adm-panel: #ffffff;
+  --adm-sidebar: #1a1a1a;
+  --adm-text: #303030;
+  --adm-muted: #6d7175;
+  --adm-border: #e1e3e5;
+  --adm-accent: #303030;
+  --adm-success: #008060;
+  --adm-warning: #b98900;
+  --adm-danger: #d72c0d;
+  --adm-radius: 8px;
+}

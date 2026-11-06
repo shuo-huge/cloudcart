@@ -1,0 +1,13 @@
+{
+  "name": "@cloudcart/plugin-stripe",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@cloudcart/plugin-sdk": "workspace:*",
+    "@cloudcart/security": "workspace:*",
+    "@cloudcart/shared": "workspace:*"
+  }
+}

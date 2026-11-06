@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img" aria-label="Sports theme preview">
+  <rect width="600" height="400" fill="#f2f2f0"/>
+  <rect x="0" y="0" width="600" height="46" fill="#0a0a0a"/>
+  <text x="24" y="32" font-family="Impact,Arial Black,sans-serif" font-size="17" fill="#fff">VELOCITY</text>
+  <rect x="24" y="38" width="98" height="5" fill="#f7c600"/>
+  <text x="520" y="31" font-family="Arial,sans-serif" font-size="9" font-weight="bold" fill="#f7c600">CART 0</text>
+  <rect x="0" y="46" width="600" height="164" fill="#191919"/>
+  <rect x="0" y="46" width="600" height="164" fill="url(#s1)"/>
+  <defs><linearGradient id="s1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".8"/><stop offset="1" stop-color="#000" stop-opacity=".15"/></linearGradient></defs>
+  <text x="26" y="120" font-family="Impact,Arial Black,sans-serif" font-size="48" fill="#fff">TRAIN</text>
+  <text x="26" y="166" font-family="Impact,Arial Black,sans-serif" font-size="48" fill="#f7c600">HARDER.</text>
+  <rect x="26" y="182" width="92" height="22" fill="#f7c600"/>
+  <text x="72" y="197" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="bold" fill="#0a0a0a">SHOP NOW</text>
+  <g>
+    <rect x="0" y="210" width="150" height="190" fill="#c9c9c5"/><rect x="152" y="210" width="150" height="190" fill="#bdbdb8"/>
+    <rect x="304" y="210" width="144" height="190" fill="#c9c9c5"/><rect x="450" y="210" width="150" height="190" fill="#bdbdb8"/>
+  </g>
+  <g fill="#0a0a0a"><rect x="0" y="330" width="150" height="70"/><rect x="152" y="330" width="150" height="70"/><rect x="304" y="330" width="144" height="70"/><rect x="450" y="330" width="150" height="70"/></g>
+  <g fill="#fff" font-family="Impact,Arial Black,sans-serif" font-size="13"><text x="12" y="362">SPRINT</text><text x="164" y="362">LIFT</text><text x="316" y="362">CORE</text><text x="462" y="362">RUN</text></g>
+</svg>

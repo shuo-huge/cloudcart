@@ -1,0 +1,11 @@
+{
+  "id": "manual",
+  "name": "Manual Payment",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "type": "payment",
+  "description": "Accept bank transfers, cash on delivery or custom offline payment instructions. Orders stay in awaiting_manual_payment until an administrator confirms receipt.",
+  "capabilities": ["payment.manual", "payment.offline"],
+  "permissions": ["orders:read", "orders:mark-paid"],
+  "dependencies": []
+}

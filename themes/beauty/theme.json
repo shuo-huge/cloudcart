@@ -1,0 +1,21 @@
+{
+  "id": "beauty",
+  "name": "Beauty",
+  "version": "1.0.0",
+  "previewImage": "/static/themes/beauty.svg",
+  "description": "A soft blush palette, rounded imagery and a centred header for skincare and cosmetics.",
+  "supportedPages": ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
+  "supportedBlocks": ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
+  "designTokens": [
+    { "key": "accent", "label": "Accent", "type": "color", "default": "#c26b7a", "group": "Colors" },
+    { "key": "accentContrast", "label": "Accent text", "type": "color", "default": "#ffffff", "group": "Colors" },
+    { "key": "background", "label": "Background", "type": "color", "default": "#fff7f5", "group": "Colors" },
+    { "key": "text", "label": "Text", "type": "color", "default": "#3a2a2a", "group": "Colors" },
+    { "key": "muted", "label": "Muted", "type": "color", "default": "#8a6f6c", "group": "Colors" },
+    { "key": "surface", "label": "Surface", "type": "color", "default": "#ffffff", "group": "Colors" },
+    { "key": "border", "label": "Border", "type": "color", "default": "#f0d8d5", "group": "Colors" },
+    { "key": "headingFont", "label": "Heading font", "type": "font", "default": "Cormorant Garamond, Georgia, serif", "group": "Typography" },
+    { "key": "radius", "label": "Radius", "type": "length", "default": "18px", "group": "Layout" },
+    { "key": "container", "label": "Container", "type": "length", "default": "1180px", "group": "Layout" }
+  ]
+}

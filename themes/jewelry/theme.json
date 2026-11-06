@@ -1,0 +1,21 @@
+{
+  "id": "jewelry",
+  "name": "Jewelry",
+  "version": "1.0.0",
+  "previewImage": "/static/themes/jewelry.svg",
+  "description": "A quiet luxury layout: ivory paper, gold hairlines, centred branding and generous negative space.",
+  "supportedPages": ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
+  "supportedBlocks": ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
+  "designTokens": [
+    { "key": "accent", "label": "Gold accent", "type": "color", "default": "#a5844e", "group": "Colors" },
+    { "key": "accentContrast", "label": "Accent text", "type": "color", "default": "#ffffff", "group": "Colors" },
+    { "key": "background", "label": "Background", "type": "color", "default": "#fbf9f4", "group": "Colors" },
+    { "key": "text", "label": "Text", "type": "color", "default": "#1c1a17", "group": "Colors" },
+    { "key": "muted", "label": "Muted", "type": "color", "default": "#7c7468", "group": "Colors" },
+    { "key": "surface", "label": "Surface", "type": "color", "default": "#ffffff", "group": "Colors" },
+    { "key": "border", "label": "Border", "type": "color", "default": "#e7dfd1", "group": "Colors" },
+    { "key": "headingFont", "label": "Heading font", "type": "font", "default": "Optima, Palatino Linotype, Georgia, serif", "group": "Typography" },
+    { "key": "radius", "label": "Radius", "type": "length", "default": "0px", "group": "Layout" },
+    { "key": "container", "label": "Container", "type": "length", "default": "1100px", "group": "Layout" }
+  ]
+}

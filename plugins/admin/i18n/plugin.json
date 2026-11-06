@@ -1,0 +1,11 @@
+{
+  "id": "admin-i18n",
+  "name": "Admin Language Pack",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "type": "admin",
+  "description": "Translate the CloudCart admin interface into English or Simplified Chinese. Ships with the Worker; enabling it never downloads code.",
+  "capabilities": ["admin.i18n"],
+  "permissions": ["admin:ui"],
+  "dependencies": []
+}

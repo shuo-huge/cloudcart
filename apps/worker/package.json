@@ -1,0 +1,28 @@
+{
+  "name": "@cloudcart/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@cloudcart/core": "workspace:*",
+    "@cloudcart/database": "workspace:*",
+    "@cloudcart/plugin-admin-i18n": "workspace:*",
+    "@cloudcart/plugin-manual-payment": "workspace:*",
+    "@cloudcart/plugin-paypal": "workspace:*",
+    "@cloudcart/plugin-sdk": "workspace:*",
+    "@cloudcart/plugin-stripe": "workspace:*",
+    "@cloudcart/security": "workspace:*",
+    "@cloudcart/shared": "workspace:*",
+    "@cloudcart/theme-sdk": "workspace:*",
+    "@cloudcart/theme-default": "workspace:*",
+    "@cloudcart/theme-fashion": "workspace:*",
+    "@cloudcart/theme-beauty": "workspace:*",
+    "@cloudcart/theme-electronics": "workspace:*",
+    "@cloudcart/theme-jewelry": "workspace:*",
+    "@cloudcart/theme-home": "workspace:*",
+    "@cloudcart/theme-sports": "workspace:*",
+    "@cloudcart/theme-single-product": "workspace:*",
+    "hono": "4.13.16",
+    "zod": "4.6.7"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@cloudcart/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@cloudcart/shared": "workspace:*",
+    "@cloudcart/ui": "workspace:*",
+    "preact": "11.1.1",
+    "sortablejs": "1.15.7"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "2.10.6",
+    "@types/sortablejs": "^1.15.8",
+    "vite": "8.3.6"
+  }
+}

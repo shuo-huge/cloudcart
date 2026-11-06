@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cloudcart",
+  "main": "apps/worker/src/index.ts",
+  "compatibility_date": "2026-10-29",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "none",
+    "run_worker_first": ["/api/*", "/webhooks/*", "/media/*", "/sitemap.xml", "/robots.txt", "/setup"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cloudcart",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "cloudcart-media"
+    }
+  ],
+  "vars": {
+    "APP_ENV": "development",
+    "STORE_NAME": "CloudCart",
+    "STORE_CURRENCY": "USD",
+    "STORE_TIMEZONE": "UTC"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

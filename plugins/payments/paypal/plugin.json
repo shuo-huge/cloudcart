@@ -1,0 +1,11 @@
+{
+  "id": "paypal",
+  "name": "PayPal",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "type": "payment",
+  "description": "PayPal Orders v2 checkout with server-side capture, webhook signature verification and amount checks.",
+  "capabilities": ["payment.checkout", "payment.capture", "payment.webhook", "payment.refund"],
+  "permissions": ["orders:read", "orders:mark-paid", "payments:refund"],
+  "dependencies": []
+}

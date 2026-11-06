@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img" aria-label="Home theme preview">
+  <rect width="600" height="400" fill="#f5f1ea"/>
+  <text x="24" y="40" font-family="Georgia,serif" font-size="18" fill="#2c2823">House &amp; Loom</text>
+  <g font-family="Arial,sans-serif" font-size="8" letter-spacing="2" fill="#6d655b"><text x="440" y="38">SHOP</text><text x="492" y="38">STORIES</text><text x="550" y="38">CART</text></g>
+  <rect x="24" y="62" width="552" height="150" fill="#cdbba6"/>
+  <rect x="24" y="62" width="552" height="150" fill="url(#h1)"/>
+  <defs><linearGradient id="h1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e3d5c2"/><stop offset="1" stop-color="#8c7358"/></linearGradient></defs>
+  <text x="300" y="132" text-anchor="middle" font-family="Georgia,serif" font-size="30" font-style="italic" fill="#fffaf2">Made for slow living</text>
+  <text x="300" y="156" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" letter-spacing="3" fill="#fffaf2">AUTUMN COLLECTION</text>
+  <g fill="#fffdf9" stroke="#ddd4c6">
+    <rect x="24" y="238" width="170" height="130"/><rect x="212" y="238" width="170" height="130"/><rect x="400" y="238" width="176" height="130"/>
+  </g>
+  <g fill="#e8e0d3"><rect x="34" y="248" width="150" height="94"/><rect x="222" y="248" width="150" height="94"/><rect x="410" y="248" width="156" height="94"/></g>
+  <g fill="#8c5a3c"><rect x="34" y="350" width="42" height="7"/><rect x="222" y="350" width="42" height="7"/><rect x="410" y="350" width="42" height="7"/></g>
+</svg>

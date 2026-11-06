@@ -1,0 +1,22 @@
+{
+  "id": "sports",
+  "name": "Sports",
+  "version": "1.0.0",
+  "previewImage": "/static/themes/sports.svg",
+  "description": "High-impact athletics: black and safety yellow, condensed uppercase type and image-overlay product cards.",
+  "supportedPages": ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
+  "supportedBlocks": ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
+  "designTokens": [
+    { "key": "accent", "label": "Safety yellow", "type": "color", "default": "#f7c600", "group": "Colors" },
+    { "key": "accentContrast", "label": "Accent text", "type": "color", "default": "#0a0a0a", "group": "Colors" },
+    { "key": "background", "label": "Background", "type": "color", "default": "#f2f2f0", "group": "Colors" },
+    { "key": "text", "label": "Text", "type": "color", "default": "#0a0a0a", "group": "Colors" },
+    { "key": "muted", "label": "Muted", "type": "color", "default": "#5a5a5a", "group": "Colors" },
+    { "key": "surface", "label": "Surface", "type": "color", "default": "#ffffff", "group": "Colors" },
+    { "key": "border", "label": "Border", "type": "color", "default": "#0a0a0a", "group": "Colors" },
+    { "key": "headingFont", "label": "Heading font", "type": "font", "default": "Impact, Arial Black, sans-serif", "group": "Typography" },
+    { "key": "headingTransform", "label": "Heading case", "type": "text", "default": "uppercase", "group": "Typography" },
+    { "key": "radius", "label": "Radius", "type": "length", "default": "0px", "group": "Layout" },
+    { "key": "container", "label": "Container", "type": "length", "default": "1400px", "group": "Layout" }
+  ]
+}

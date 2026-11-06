@@ -1,0 +1,14 @@
+{
+  "name": "@cloudcart/plugin-admin-i18n",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@cloudcart/database": "workspace:*",
+    "@cloudcart/plugin-sdk": "workspace:*"
+  }
+}

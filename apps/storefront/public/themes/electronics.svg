@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img" aria-label="Electronics theme preview">
+  <rect width="600" height="400" fill="#0a0c10"/>
+  <rect x="24" y="22" width="552" height="34" fill="#0d1218" stroke="#232c36"/>
+  <rect x="36" y="34" width="7" height="7" fill="#38e1ff"/>
+  <text x="50" y="43" font-family="Arial,sans-serif" font-size="10" letter-spacing="3" fill="#e8edf2">TECH</text>
+  <text x="520" y="43" font-family="Arial,sans-serif" font-size="8" letter-spacing="2" fill="#38e1ff">CART</text>
+  <text x="24" y="106" font-family="Arial Narrow,Arial,sans-serif" font-size="34" fill="#e8edf2">NEXT–GEN</text>
+  <text x="24" y="140" font-family="Arial Narrow,Arial,sans-serif" font-size="34" fill="#38e1ff">HARDWARE</text>
+  <text x="24" y="164" font-family="Arial,sans-serif" font-size="9" letter-spacing="2" fill="#8b97a5">PRECISION ENGINEERED</text>
+  <rect x="370" y="76" width="206" height="110" fill="#11161d" stroke="#38e1ff"/>
+  <rect x="410" y="96" width="126" height="70" fill="#0a0c10" stroke="#2a3542"/>
+  <g fill="#11161d" stroke="#232c36">
+    <rect x="24" y="200" width="128" height="176"/><rect x="166" y="200" width="128" height="176"/>
+    <rect x="308" y="200" width="128" height="176"/><rect x="450" y="200" width="126" height="176"/>
+  </g>
+  <g fill="#0a0c10" stroke="#2a3542"><rect x="40" y="218" width="96" height="86"/><rect x="182" y="218" width="96" height="86"/><rect x="324" y="218" width="96" height="86"/><rect x="466" y="218" width="94" height="86"/></g>
+  <g fill="#38e1ff" font-family="Arial,sans-serif" font-size="8"><text x="40" y="326">DEVICE 01</text><text x="182" y="326">DEVICE 02</text><text x="324" y="326">DEVICE 03</text><text x="466" y="326">DEVICE 04</text></g>
+</svg>
