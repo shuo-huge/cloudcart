@@ -126,7 +126,7 @@ export async function serverSetupPage(c: Context<AppContext>): Promise<Response>
   if (await isInstalled(database)) return c.redirect("/admin", 302);
 
   const tokenConfigured = Boolean(c.env.SETUP_TOKEN);
-  const setupToken = c.req.query("token") ?? "";
+  const setupToken = tokenConfigured ? (c.req.query("token") ?? "") : "";
   const warning = !tokenConfigured
     ? "The installation token has not been generated yet. Re-run the CloudCart deployment."
     : !setupToken
