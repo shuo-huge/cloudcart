@@ -19,7 +19,7 @@ The `deploy` script runs the CloudCart deployment CLI. It automatically:
 2. applies remote database migrations;
 3. deploys the Worker;
 4. generates `APP_MASTER_KEY` and stores it as a Worker secret if it does not exist;
-5. generates a one-time `SETUP_TOKEN` and stores it as a Worker secret;
+5. generates a one-time `SETUP_TOKEN` and stores it as a Worker secret while the store is uninstalled; a new deployment before installation refreshes the private link;
 6. prints a private setup URL containing the one-time token in the successful deployment log.
 
 Open the **Setup link** from the latest successful deployment log. The setup page only asks for the administrator's name, email and password. Store name and currency start with sensible defaults and can be changed later in Admin → Settings. The token is carried in the private URL; it is not a form field.
@@ -48,7 +48,7 @@ The script (`scripts/deploy.mjs`):
 4. builds the storefront and admin bundles;
 5. applies remote D1 migrations;
 6. deploys the Worker;
-7. creates `APP_MASTER_KEY` and `SETUP_TOKEN` only if they do not already exist;
+7. preserves the existing `APP_MASTER_KEY`; it reuses or refreshes the setup token according to installation state;
 8. prints the store URL, admin URL and one-time setup link.
 
 State (including generated secrets) is written to `.cloudcart/deploy.json`, which is gitignored. **Keep it private and back it up**; rotating `APP_MASTER_KEY` invalidates sessions and prevents previously encrypted payment credentials from being decrypted.
