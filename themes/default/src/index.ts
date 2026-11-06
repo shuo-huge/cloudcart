@@ -246,6 +246,7 @@ button, input, select, textarea { font: inherit; }
 .cc-pdp-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .cc-pdp-thumb.is-active { outline: 2px solid var(--cc-accent); outline-offset: 2px; }
 .cc-mobile-buybar { display: none; }
+.cc-mobile-checkout-bar { display: none; }
 .cc-button:disabled { opacity: .48; cursor: not-allowed; }
 .cc-product-title a { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .cc-product-price { font-variant-numeric: tabular-nums; }
@@ -309,6 +310,12 @@ button, input, select, textarea { font: inherit; }
   .cc-chips { display: flex; flex-wrap: nowrap; overflow-x: auto; padding: 2px 2px 8px; }
   .cc-chip { flex: 0 0 auto; min-height: 38px; display: inline-flex; align-items: center; }
   .cc-cart-layout, .cc-checkout { grid-template-columns: minmax(0,1fr); gap: 22px; }
+  .cc-cart-layout { padding-bottom: 86px; }
+  .cc-mobile-checkout-bar { display: flex; position: fixed; z-index: 70; inset: auto 0 0; align-items: center; justify-content: space-between; gap: 12px; padding: 10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: var(--cc-bg); color: var(--cc-text); border-top: 1px solid var(--cc-border); box-shadow: 0 -10px 30px rgba(0,0,0,.09); }
+  .cc-mobile-checkout-bar > div { display: grid; gap: 2px; font-size: .76rem; }
+  .cc-mobile-checkout-bar > div span { color: var(--cc-muted); }
+  .cc-mobile-checkout-bar > div strong { font-size: .94rem; font-variant-numeric: tabular-nums; }
+  .cc-mobile-checkout-bar .cc-button { min-height: 46px; padding-inline: 24px; }
   .cc-cart-line { grid-template-columns: 76px minmax(0,1fr); gap: 12px; padding: 16px 0; }
   .cc-cart-line img { width: 76px; height: 92px; }
   .cc-cart-line > div:last-child { grid-column: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left !important; min-width: 0; }
@@ -713,6 +720,10 @@ ${data.related.length > 0 ? `<section class="cc-section"><div class="cc-containe
       <a class="cc-button cc-button--block" href="/checkout">Checkout</a>
       <p class="cc-muted" style="font-size:.78rem;margin-top:12px">Taxes and shipping are calculated at checkout.</p>
     </aside>
+  </div>
+  <div class="cc-mobile-checkout-bar">
+    <div><span>Estimated total</span><strong>${formatMoney(data.totalCents, data.currency)}</strong></div>
+    <a class="cc-button" href="/checkout">Checkout</a>
   </div>
 </div></div>`);
   },
