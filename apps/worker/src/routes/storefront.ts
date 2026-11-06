@@ -414,7 +414,7 @@ async function orderConfirmationBody(
       <aside class="cc-summary">
         <h2 style="font-size:1.1rem">Shipping address</h2>
         ${address ? `<p style="font-size:.9rem;line-height:1.7">${escapeHtml(address.name)}<br>${escapeHtml(address.line1)}${address.line2 ? `<br>${escapeHtml(address.line2)}` : ""}<br>${escapeHtml(address.city)}${address.state ? `, ${escapeHtml(address.state)}` : ""} ${escapeHtml(address.postal_code)}<br>${escapeHtml(address.country)}</p>` : ""}
-        <p class="cc-muted" style="font-size:.85rem">We sent a confirmation to ${escapeHtml(order.email)}.</p>
+        <p class="cc-muted" style="font-size:.85rem">Save this private order link to view updates. Email delivery is not configured.</p>
         <a class="cc-button cc-button--block" href="/products">Continue shopping</a>
       </aside>
     </div>

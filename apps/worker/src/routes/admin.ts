@@ -7,6 +7,7 @@ import {
   couponInputSchema,
   createCategory,
   createCoupon,
+  createContentPage,
   createProduct,
   createRate,
   createRedirect,
@@ -774,6 +775,20 @@ adminRoutes.get("/pages", async (c) => {
   try {
     await ensureDefaultContentPages(db(c));
     return c.json({ ok: true, data: await listPages(db(c)) });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/pages", async (c) => {
+  try {
+    const input = parse(z.object({
+      title: z.string().trim().min(1).max(140),
+      slug: z.string().trim().min(1).max(80),
+    }), await readJson(c));
+    const id = await createContentPage(db(c), input.slug, input.title);
+    await audit(c, "page.created", "page", id, { slug: input.slug });
+    return c.json({ ok: true, data: { id, slug: input.slug } }, 201);
   } catch (error) {
     return fail(c, error);
   }

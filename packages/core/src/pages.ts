@@ -166,6 +166,12 @@ export async function listPageVersions(db: Database, slug: string) {
 }
 
 export async function createContentPage(db: Database, slug: string, title: string): Promise<string> {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug === "home" || slug.length > 80) {
+    throw new HttpError(400, "invalid_slug", "Use a lowercase URL slug with letters, numbers and hyphens.");
+  }
+  if (title.trim().length < 1 || title.trim().length > 140) {
+    throw new HttpError(400, "invalid_title", "Enter a page title between 1 and 140 characters.");
+  }
   if (await db.exists("SELECT 1 FROM pages WHERE slug = ?", [slug])) {
     throw new HttpError(409, "slug_taken", "A page with this slug already exists.");
   }
