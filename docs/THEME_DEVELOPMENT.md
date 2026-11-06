@@ -56,6 +56,25 @@ The kit exposes CSS variables (`--tk-bg`, `--tk-text`, `--tk-accent`, `--tk-font
 `--tk-heading-font`, `--tk-radius`, `--tk-container`, …). Theme CSS overrides them and adds
 brand-specific rules; structural differences come from the variants above, not only colour swaps.
 
+### Responsive storefront baseline
+
+Every theme created with `createTheme` receives the shared responsive layer before its own CSS.
+The Default theme has the equivalent baseline in its own stylesheet. Theme-specific CSS should
+refine the brand at each breakpoint rather than reimplement the core layout.
+
+The shared baseline includes:
+- accessible skip link and a touch-sized mobile navigation drawer;
+- compact mobile header that preserves the brand, menu and cart entry points;
+- two-column mobile product grids, horizontally scrollable collection chips and touch-friendly
+  filter/search controls;
+- responsive product galleries with selectable thumbnails and swipeable thumbnail rails;
+- a sticky mobile add-to-cart bar after the primary product CTA scrolls out of view;
+- a sticky mobile checkout action on non-empty carts;
+- safe-area insets, visible keyboard focus, reduced-motion support and 44–52px primary controls.
+
+Keep desktop and mobile navigation labels identical, use semantic buttons for gallery controls,
+and avoid fixed-width content that can cause horizontal overflow at 320px.
+
 ## 4. Design tokens
 
 Manifest tokens are editable in the admin and emitted as `--t-<key>` on `:root` (values are
