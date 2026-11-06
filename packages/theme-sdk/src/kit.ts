@@ -308,6 +308,7 @@ button:disabled, .tk-btn:disabled { opacity: .48; cursor: not-allowed; }
 .tk-pdp-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .tk-pdp-thumb.is-active { outline: 2px solid var(--tk-accent); outline-offset: 2px; }
 .tk-mobile-buybar { display: none; }
+.tk-mobile-checkout-bar { display: none; }
 .tk-cart-line > div:last-child { min-width: max-content; }
 .tk-card-media:focus-visible, .tk-pdp-thumb:focus-visible { outline-offset: 4px; }
 .tk-btn, .tk-field input, .tk-field select, .tk-field textarea, .tk-toolbar input, .tk-toolbar select, .tk-coupon input, .tk-newsletter input { min-height: 48px; }
@@ -436,6 +437,18 @@ button:disabled, .tk-btn:disabled { opacity: .48; cursor: not-allowed; }
   .tk-toolbar form .tk-btn { grid-column: 1 / -1; }
   .tk-toolbar input, .tk-toolbar select { min-width: 0; width: 100%; min-height: 46px; }
   .tk-cart-layout, .tk-checkout { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .tk-cart-layout { padding-bottom: 86px; }
+  .tk-mobile-checkout-bar {
+    display: flex; position: fixed; z-index: 70; inset: auto 0 0;
+    align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background: var(--tk-bg); color: var(--tk-text); border-top: 1px solid var(--tk-border);
+    box-shadow: 0 -10px 30px rgba(0,0,0,.09);
+  }
+  .tk-mobile-checkout-bar > div { display: grid; gap: 2px; font-size: .76rem; }
+  .tk-mobile-checkout-bar > div span { color: var(--tk-muted); }
+  .tk-mobile-checkout-bar > div strong { font-size: .94rem; font-variant-numeric: tabular-nums; }
+  .tk-mobile-checkout-bar .tk-btn { min-height: 46px; padding-inline: 24px; }
   .tk-cart-line { grid-template-columns: 76px minmax(0, 1fr); gap: 12px; padding: 16px 0; }
   .tk-cart-line img { width: 76px; height: 92px; }
   .tk-cart-line > div:last-child { grid-column: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left !important; min-width: 0; }
@@ -853,6 +866,10 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
         <div class="tk-cart-layout">
           <div class="tk-cart-lines">${cartLines(data)}</div>
           ${summary(data)}
+        </div>
+        <div class="tk-mobile-checkout-bar">
+          <div><span>Estimated total</span><strong>${formatMoney(data.totalCents, data.currency)}</strong></div>
+          <a class="tk-btn" href="/checkout">Checkout</a>
         </div>
       </div></div>`);
     },
