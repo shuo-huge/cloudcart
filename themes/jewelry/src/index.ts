@@ -74,6 +74,13 @@ const css = `
   .tk-pdp-info { padding-top: 0; }
 }
 
+@media (max-width: 760px) {
+  .tk-header--centered .tk-header-inner { min-height: 66px; padding: 8px 0; }
+  .tk-brand { font-size: 1.18rem; letter-spacing: .12em; }
+  .tk-pdp { grid-template-columns: minmax(0, 1fr); }
+  .tk-pdp-info { position: static; top: auto; }
+}
+
 `;
 
 export const theme = createTheme({
