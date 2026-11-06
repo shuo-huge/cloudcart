@@ -29,6 +29,7 @@ export function PagesPage() {
       </header>
 
       <div class="notice">
+        Standard store pages are added as drafts the first time Page Builder is opened. Review business details and policy wording before publishing.
         The editor supports drag-to-reorder, live preview at desktop/tablet/mobile widths, undo/redo,
         autosaved drafts, immutable published versions and sanitised HTML.
       </div>

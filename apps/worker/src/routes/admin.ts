@@ -18,6 +18,7 @@ import {
   deleteRate,
   deleteRedirect,
   deleteZone,
+  ensureDefaultContentPages,
   getAdminProduct,
   getCustomer,
   getDashboardStats,
@@ -771,6 +772,7 @@ adminRoutes.put("/themes/:id/settings", async (c) => {
 
 adminRoutes.get("/pages", async (c) => {
   try {
+    await ensureDefaultContentPages(db(c));
     return c.json({ ok: true, data: await listPages(db(c)) });
   } catch (error) {
     return fail(c, error);
