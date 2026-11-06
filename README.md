@@ -11,7 +11,7 @@ One Worker · One D1 database · External image URLs · Optional R2
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![D1](https://img.shields.io/badge/Database-D1-0051FF)](https://developers.cloudflare.com/d1/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-24%20passing-brightgreen)](docs/TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-28%20passing-brightgreen)](docs/TEST_REPORT.md)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Architecture](docs/ARCHITECTURE.md) · [Deployment](docs/DEPLOYMENT.md)
 
@@ -187,7 +187,7 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design, order sta
 
 **v0.1.0 — functional, not yet declared 1.0.** The repository is honest about what works and what does not.
 
-Implemented and tested: setup/login/CSRF, products/categories/media, server cart, guest checkout, stock reservation, manual payment, order fulfilment, 8 themes, page editor draft/preview/publish, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, 24 workerd tests.
+Implemented and tested: setup/login/CSRF, products/categories/media, server cart, guest checkout, stock reservation, manual payment, order fulfilment, 8 themes, page editor draft/preview/publish, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, 28 workerd tests.
 
 Not yet verified or missing:
 - No live Stripe/PayPal Sandbox transaction has been run in this repository; provider APIs are mocked in tests.
