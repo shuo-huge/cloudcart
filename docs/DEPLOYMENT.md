@@ -12,7 +12,7 @@
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
 Cloudflare clones the repository into Workers Builds on the deployer's account, provisions the D1
-database and R2 bucket declared in `wrangler.jsonc`, asks for the secrets listed in
+database declared in `wrangler.jsonc`, asks for the secrets listed in. R2 is optional and is not part of the default deployment.
 `.dev.vars.example`, then runs:
 
 ```json
@@ -47,11 +47,11 @@ The script (`scripts/deploy.mjs`):
 1. checks Node, Wrangler and Cloudflare authentication;
 2. finds or creates a D1 database (never duplicates an existing one);
 3. writes Worker name and D1 id into `wrangler.jsonc`;
-5. builds the storefront and admin bundles;
-6. applies remote D1 migrations;
-7. deploys the Worker;
-8. creates `APP_MASTER_KEY` and `SETUP_TOKEN` only if they do not already exist;
-9. prints the store URL, admin URL and one-time setup link.
+4. builds the storefront and admin bundles;
+5. applies remote D1 migrations;
+6. deploys the Worker;
+7. creates `APP_MASTER_KEY` and `SETUP_TOKEN` only if they do not already exist;
+8. prints the store URL, admin URL and one-time setup link.
 
 State (including the generated secrets) is written to `.cloudcart/deploy.json`, which is gitignored.
 **Keep it private and back it up**; rotating `APP_MASTER_KEY` invalidates sessions and decrypts no
@@ -112,8 +112,6 @@ pnpm run deploy:cloudflare
 ```bash
 # Database
 npx wrangler d1 export cloudcart --remote --output backup-YYYYMMDD.sql
-
-
 ```
 
 Back up `.cloudcart/deploy.json` separately and securely.
