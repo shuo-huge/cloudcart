@@ -2,19 +2,100 @@
   "id": "single-product",
   "name": "Single Product",
   "version": "1.1.0",
-  "previewImage": "/static/themes/theme-previews-atlas.webp",
+  "previewImage": "/static/themes/single-product.svg",
   "description": "Conversion-focused single-product storefront with a bold campaign hero, focused product story, persistent mobile purchase action and clear trust-building sections.",
-  "supportedPages": ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
-  "supportedBlocks": ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
+  "supportedPages": [
+    "home",
+    "product",
+    "collection",
+    "search",
+    "cart",
+    "checkout",
+    "page",
+    "404"
+  ],
+  "supportedBlocks": [
+    "announcement-bar",
+    "hero",
+    "image-banner",
+    "product-grid",
+    "featured-collection",
+    "category-grid",
+    "image-with-text",
+    "rich-text",
+    "video-embed",
+    "testimonials",
+    "faq",
+    "trust-badges",
+    "logo-list",
+    "spacer",
+    "divider",
+    "newsletter",
+    "custom-html"
+  ],
   "designTokens": [
-    { "key": "accent", "label": "Accent", "type": "color", "default": "#111111", "group": "Colors" },
-    { "key": "background", "label": "Background", "type": "color", "default": "#ffffff", "group": "Colors" },
-    { "key": "text", "label": "Text", "type": "color", "default": "#101010", "group": "Colors" },
-    { "key": "muted", "label": "Muted", "type": "color", "default": "#777777", "group": "Colors" },
-    { "key": "surface", "label": "Surface", "type": "color", "default": "#fafafa", "group": "Colors" },
-    { "key": "border", "label": "Border", "type": "color", "default": "#e8e8e8", "group": "Colors" },
-    { "key": "headingFont", "label": "Heading font", "type": "font", "default": "Helvetica Neue, Arial, sans-serif", "group": "Typography" },
-    { "key": "radius", "label": "Radius", "type": "length", "default": "0px", "group": "Layout" },
-    { "key": "container", "label": "Container", "type": "length", "default": "1000px", "group": "Layout" }
+    {
+      "key": "accent",
+      "label": "Accent",
+      "type": "color",
+      "default": "#111111",
+      "group": "Colors"
+    },
+    {
+      "key": "background",
+      "label": "Background",
+      "type": "color",
+      "default": "#ffffff",
+      "group": "Colors"
+    },
+    {
+      "key": "text",
+      "label": "Text",
+      "type": "color",
+      "default": "#101010",
+      "group": "Colors"
+    },
+    {
+      "key": "muted",
+      "label": "Muted",
+      "type": "color",
+      "default": "#777777",
+      "group": "Colors"
+    },
+    {
+      "key": "surface",
+      "label": "Surface",
+      "type": "color",
+      "default": "#fafafa",
+      "group": "Colors"
+    },
+    {
+      "key": "border",
+      "label": "Border",
+      "type": "color",
+      "default": "#e8e8e8",
+      "group": "Colors"
+    },
+    {
+      "key": "headingFont",
+      "label": "Heading font",
+      "type": "font",
+      "default": "Helvetica Neue, Arial, sans-serif",
+      "group": "Typography"
+    },
+    {
+      "key": "radius",
+      "label": "Radius",
+      "type": "length",
+      "default": "0px",
+      "group": "Layout"
+    },
+    {
+      "key": "container",
+      "label": "Container",
+      "type": "length",
+      "default": "1000px",
+      "group": "Layout"
+    }
   ]
 }
