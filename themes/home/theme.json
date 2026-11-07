@@ -2,20 +2,107 @@
   "id": "home",
   "name": "Home",
   "version": "1.1.0",
-  "previewImage": "/static/themes/theme-previews-atlas.webp",
+  "previewImage": "/static/themes/home.svg",
   "description": "Warm lifestyle and homeware storefront with tactile neutral colors, spacious room imagery, calm editorial sections and effortless mobile browsing.",
-  "supportedPages": ["home", "product", "collection", "search", "cart", "checkout", "page", "404"],
-  "supportedBlocks": ["announcement-bar", "hero", "image-banner", "product-grid", "featured-collection", "category-grid", "image-with-text", "rich-text", "video-embed", "testimonials", "faq", "trust-badges", "logo-list", "spacer", "divider", "newsletter", "custom-html"],
+  "supportedPages": [
+    "home",
+    "product",
+    "collection",
+    "search",
+    "cart",
+    "checkout",
+    "page",
+    "404"
+  ],
+  "supportedBlocks": [
+    "announcement-bar",
+    "hero",
+    "image-banner",
+    "product-grid",
+    "featured-collection",
+    "category-grid",
+    "image-with-text",
+    "rich-text",
+    "video-embed",
+    "testimonials",
+    "faq",
+    "trust-badges",
+    "logo-list",
+    "spacer",
+    "divider",
+    "newsletter",
+    "custom-html"
+  ],
   "designTokens": [
-    { "key": "accent", "label": "Terracotta", "type": "color", "default": "#8c5a3c", "group": "Colors" },
-    { "key": "accentContrast", "label": "Accent text", "type": "color", "default": "#ffffff", "group": "Colors" },
-    { "key": "background", "label": "Background", "type": "color", "default": "#f5f1ea", "group": "Colors" },
-    { "key": "text", "label": "Text", "type": "color", "default": "#2c2823", "group": "Colors" },
-    { "key": "muted", "label": "Muted", "type": "color", "default": "#7a7166", "group": "Colors" },
-    { "key": "surface", "label": "Surface", "type": "color", "default": "#fffdf9", "group": "Colors" },
-    { "key": "border", "label": "Border", "type": "color", "default": "#ddd4c6", "group": "Colors" },
-    { "key": "headingFont", "label": "Heading font", "type": "font", "default": "Georgia, Times New Roman, serif", "group": "Typography" },
-    { "key": "radius", "label": "Radius", "type": "length", "default": "2px", "group": "Layout" },
-    { "key": "container", "label": "Container", "type": "length", "default": "1250px", "group": "Layout" }
+    {
+      "key": "accent",
+      "label": "Terracotta",
+      "type": "color",
+      "default": "#8c5a3c",
+      "group": "Colors"
+    },
+    {
+      "key": "accentContrast",
+      "label": "Accent text",
+      "type": "color",
+      "default": "#ffffff",
+      "group": "Colors"
+    },
+    {
+      "key": "background",
+      "label": "Background",
+      "type": "color",
+      "default": "#f5f1ea",
+      "group": "Colors"
+    },
+    {
+      "key": "text",
+      "label": "Text",
+      "type": "color",
+      "default": "#2c2823",
+      "group": "Colors"
+    },
+    {
+      "key": "muted",
+      "label": "Muted",
+      "type": "color",
+      "default": "#7a7166",
+      "group": "Colors"
+    },
+    {
+      "key": "surface",
+      "label": "Surface",
+      "type": "color",
+      "default": "#fffdf9",
+      "group": "Colors"
+    },
+    {
+      "key": "border",
+      "label": "Border",
+      "type": "color",
+      "default": "#ddd4c6",
+      "group": "Colors"
+    },
+    {
+      "key": "headingFont",
+      "label": "Heading font",
+      "type": "font",
+      "default": "Georgia, Times New Roman, serif",
+      "group": "Typography"
+    },
+    {
+      "key": "radius",
+      "label": "Radius",
+      "type": "length",
+      "default": "2px",
+      "group": "Layout"
+    },
+    {
+      "key": "container",
+      "label": "Container",
+      "type": "length",
+      "default": "1250px",
+      "group": "Layout"
+    }
   ]
 }
