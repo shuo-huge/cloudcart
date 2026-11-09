@@ -1,0 +1,22 @@
+{
+  "id": "example-analytics",
+  "name": "Example Analytics",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "type": "analytics",
+  "runtime": "remote",
+  "description": "Minimal remote plugin example with an iframe admin page and HMAC-signed health endpoint.",
+  "author": "Example Developer",
+  "capabilities": ["analytics.read"],
+  "permissions": ["store:read", "products:read"],
+  "service": {
+    "baseUrl": "https://plugin.example.com/api/cloudcart/v1",
+    "auth": "hmac-sha256"
+  },
+  "admin": {
+    "entryUrl": "https://plugin.example.com/admin",
+    "pages": [
+      { "id": "overview", "label": "Analytics overview", "icon": "chart" }
+    ]
+  }
+}

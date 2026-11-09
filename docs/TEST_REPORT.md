@@ -16,14 +16,14 @@ passing without its output.
 |---|---|
 | `pnpm install` | dependencies installed (24 workspace projects) |
 | `pnpm typecheck` (`tsc --noEmit`) | **passed**, no diagnostics |
-| `pnpm test` | **8 test files, 49 tests passed**, ~4.9 s |
+| `pnpm test` | **14 test files, 94 tests passed**, ~9 s |
 | `pnpm build` | storefront + admin built; asset references regenerated |
-| `pnpm test:e2e` | **10 Playwright tests passed** (1 setup + 9 browser), ~20 s |
-| `wrangler deploy --dry-run --outdir .wrangler/dry` | **passed**; 23 asset files; Worker 1329.70 KiB / **246.41 KiB gzip**; D1 + ASSETS bindings resolved; no R2 binding (optional and not provisioned) |
+| `pnpm test:e2e` | **11 Playwright tests passed** (1 setup + 10 browser), ~24 s |
+| `wrangler deploy --dry-run --outdir .wrangler/dry` | **passed**; 23 asset files; Worker 1386.22 KiB / **258.01 KiB gzip**; D1 + ASSETS bindings resolved; no R2 binding (optional and not provisioned) |
 
 Build output sizes:
 - storefront bundle: 5.08 KiB JS (1.85 KiB gzip) / 1.03 KiB CSS (0.53 KiB gzip);
-- admin bundle: 170.96 KiB JS (50.01 KiB gzip) / 20.85 KiB CSS (5.03 KiB gzip).
+- admin bundle: 181.99 KiB JS (53.02 KiB gzip) / 23.02 KiB CSS (5.49 KiB gzip).
 
 `node scripts/deploy.mjs --check` requires an authenticated Cloudflare account and was not run in
 this session.
@@ -33,7 +33,7 @@ this session.
 ## 2. Workerd / Vitest coverage
 
 ### `tests/health.test.ts` (3 tests)
-- `/api/health` returns 200, `database: "ok"`, version `0.2.0`, security header present.
+- `/api/health` returns 200, `database: "ok"`, version `0.3.0`, security header present.
 - `/api/setup/status` reports an uninstalled store on a fresh DB.
 - Unknown API route returns JSON 404.
 
@@ -93,13 +93,43 @@ this session.
 - Removing an image compacts the remaining positions.
 - Checkout stores the position-0 image in the order item snapshot.
 
+### `tests/plugin-manifest.test.ts` (9 tests)
+- Valid remote manifest parsing and URL normalization; permission de-duplication.
+- Required `runtime`/`service`/`admin`; incompatible API versions; unknown fields.
+- Rejects HTTP, localhost/private/link-local/IPv6 loopback, credentials, non-443 ports, and FTP.
+- Allows loopback only with the explicit test flag; rejects unknown/wildcard permissions and bad pages.
+
+### `tests/plugin-token.test.ts` (6 tests)
+- HS256 JWT signing/claims, tampered signature, expiry, wrong audience, malformed token, future `iat`.
+
+### `tests/remote-plugins.test.ts` (6 tests)
+- Stable `store_id`; install disabled with encrypted service secret; remote list metadata/admin pages.
+- Immediate enable, update preserving enabled state, secret rotation on origin change.
+- Soft uninstall hides the plugin while retaining the row; bundled-id conflicts rejected.
+
+### `tests/remote-service.test.ts` (10 tests)
+- Manifest fetch/hash, HTTPS enforcement before fetch, validated redirects, size/content-type limits, preview warnings.
+- Install from URL with generated secret; exact HMAC canonical string verified server-side.
+- Timeout → `service_timeout` and health error; scoped launch token; launch refuses disabled/unknown pages.
+
+### `tests/plugin-api.test.ts` (11 tests)
+- Bearer required; wrong origin; disabled plugin; expired token; wrong store/audience.
+- Exact-origin CORS preflight; permission intersection; store/product/order/settings/event endpoints.
+- Reserved setting keys rejected; plugin events written to the audit log.
+
+### `tests/remote-payment.test.ts` (3 tests)
+- Enabled resolver and historical-webhook resolver behavior.
+- Remote checkout redirect and verified webhook marks the order paid through `processPaymentEvent`.
+- A remote event for another payment method is rejected and leaves the order unpaid.
+
 ---
 
 ## 3. Playwright browser coverage
 
 `pnpm test:e2e` builds the app, resets a dedicated local D1 directory (`.wrangler/e2e`), applies all
-four migrations, boots `wrangler dev` on `127.0.0.1:8787`, and seeds the store through the one-time
-setup token. Specs (8 files, 10 tests):
+five migrations, starts a local mock remote plugin on `127.0.0.1:8788`, boots `wrangler dev` on
+`127.0.0.1:8787` with the test-only insecure-origin flag, and seeds the store through the one-time
+setup token. Specs (9 files, 11 tests):
 
 1. **setup** — creates the owner, seeds tax/shipping/product images/home page and saves storage state.
 2. **admin-auth** — signs in through the login form.
@@ -111,8 +141,11 @@ setup token. Specs (8 files, 10 tests):
 5. **product-images** — drags image order, verifies the Cover badge, reloads, and checks that the new
    first image is the storefront product cover.
 6. **emails** — opens the email admin page, enables the plugin, saves the From address, and disables it again.
-7. **themes** — opens the full preview modal and verifies the WebP atlas background.
-8. **checkout** — guest adds to cart, sees “Calculated at checkout”, completes a US manual-payment
+7. **remote-plugins** — installs a remote plugin by Manifest URL, previews permissions/pages, enables
+   it, verifies the dynamic sidebar menu and exact-origin CSP, opens the iframe, confirms the plugin
+   receives a JWT and reads store data through `/api/plugin/v1/store`, then disables and uninstalls it.
+8. **themes** — opens the full preview modal and verifies the WebP atlas background.
+9. **checkout** — guest adds to cart, sees “Calculated at checkout”, completes a US manual-payment
    checkout, and sees `Sales tax $2.48` / total `$32.48` on the confirmation page.
 
 The E2E suite discovered and verified two UI fixes made in this change:
@@ -135,6 +168,11 @@ The E2E suite discovered and verified two UI fixes made in this change:
   reviewed, but not stress-tested under parallel load.
 - **Cloudflare quota behaviour.** Cannot be simulated with free-tier account limits in tests.
 - **Authenticated visual regression.** Playwright asserts layout/selectors, not pixel screenshots.
+- **A real third-party remote plugin service.** The Playwright suite uses a local HTTP mock allowed
+  only by the E2E insecure-origin flag. No public HTTPS plugin has been installed or called in
+  production.
+- **Remote plugin marketplace operations.** There is no public catalog, publisher signature
+  verification, ratings, billing, or automatic update channel in this release.
 
 ## 5. Known gaps that affect correctness claims
 
@@ -142,6 +180,13 @@ The E2E suite discovered and verified two UI fixes made in this change:
 - Tax has no customer exemption certificates or per-product tax classes.
 - Email delivery has no inbound processing, bounce handling or scheduled retry loop; retries are
   request-driven.
+- Remote plugins are trusted third-party services: they receive the order/product data allowed by
+  their manifest permissions. There is no publisher code signing beyond HTTPS, manifest hash pinning,
+  and administrator confirmation.
+- Remote plugin installation requires the administrator to configure the service secret on the
+  plugin server; there is no automated secret exchange or publisher account system.
+- Remote themes, remote storefront rendering, and remote shipping/product core logic are not
+  supported.
 - The deploy script rewrites `wrangler.jsonc` as normalised JSON if it contained comments.
 
 These are documented in `README.md` and are not presented as complete.

@@ -87,6 +87,32 @@ export async function hmacSha256Base64Url(masterKey: string, message: string, in
   return toBase64Url(new Uint8Array(signature));
 }
 
+/**
+ * HMAC-SHA256 using a raw shared secret (no HKDF). Used for remote plugin
+ * request signing so plugin authors can implement the same canonical string
+ * with any standard library.
+ */
+export async function hmacSha256RawBase64Url(secret: string, message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    utf8(secret) as BufferSource,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, utf8(message) as BufferSource);
+  return toBase64Url(new Uint8Array(signature));
+}
+
+export async function verifyHmacSha256Raw(
+  secret: string,
+  message: string,
+  signature: string,
+): Promise<boolean> {
+  const expected = await hmacSha256RawBase64Url(secret, message);
+  return constantTimeEqual(signature, expected);
+}
+
 /** Encrypt a secret for storage in D1. Format: v1.<iv_b64url>.<ciphertext_b64url> */
 export async function encryptSecret(plaintext: string, masterKey: string): Promise<string> {
   if (!masterKey || masterKey.length < 16) throw new Error("APP_MASTER_KEY is missing or too short");

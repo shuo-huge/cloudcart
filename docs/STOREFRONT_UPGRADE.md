@@ -28,9 +28,9 @@ Verified on 2026-11-09:
 
 ```sh
 pnpm typecheck
-pnpm test        # 8 files, 49 tests
+pnpm test        # 14 files, 94 tests
 pnpm build
-pnpm test:e2e    # Playwright: setup, login, editor drag, responsive, images, emails, themes, checkout
+pnpm test:e2e    # 11 Playwright tests: setup, login, editor drag, responsive, images, emails, remote plugins, themes, checkout
 ```
 
 No live Cloudflare resources or payment-provider sandbox accounts were used by this verification.

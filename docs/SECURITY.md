@@ -60,6 +60,30 @@ Admin mutations require:
 - Administrators cannot mark Stripe/PayPal orders paid.
 - Manual confirmations record admin id and timestamp.
 
+## Remote plugins
+
+- Plugin code never runs inside the CloudCart Worker. A remote plugin is an independently deployed
+  HTTPS service; CloudCart stores only its manifest and calls signed APIs.
+- Manifest URLs require HTTPS on port 443 with a public hostname. Literal loopback, private,
+  link-local and internal hosts, embedded credentials, and unvalidated redirects are rejected.
+  Fetches have a 5-second timeout and 64 KiB limit.
+- Manifest permissions are allow-listed; unknown or wildcard permissions are rejected. The manifest is
+  hash-pinned at install and re-previewed when it changes.
+- Every service call is HMAC-SHA256 signed over timestamp, nonce, method, path, and body hash. The
+  per-plugin service secret is stored AES-GCM encrypted and decrypted only inside the Worker.
+- The iframe receives a 5-minute HS256 JWT through `postMessage`, sent only to the exact plugin
+  origin. The parent verifies both `event.origin` and `event.source`. Tokens are never put in URLs or
+  browser storage and are not valid for `/api/admin/*`.
+- `/api/plugin/v1/*` requires a bearer token and checks the plugin is enabled on every request, so
+  disabling a plugin invalidates outstanding tokens immediately. CORS is an exact origin allow-list.
+- The admin CSP adds `frame-src` only for exact origins of enabled remote plugins; no wildcard.
+  Remote admin pages must allow the store origin in `frame-ancestors`; the admin itself remains
+  non-frameable (`frame-ancestors 'none'`, `X-Frame-Options: DENY`).
+- Uninstalling soft-deletes the plugin, disables it, and retains orders and payment transactions.
+  Pending provider payments should be completed before uninstalling.
+- Local HTTP plugin URLs are accepted only with `PLUGIN_ALLOW_INSECURE_ORIGINS=1` and a non-production
+  `APP_ENV` (development/test/e2e). This flag is rejected in production configuration.
+
 ## Audit
 
 Administrative mutations write `audit_logs` with actor, action, entity and IP. Payment webhook
@@ -71,7 +95,8 @@ events write audit entries with no admin actor.
 - Rate limiting is limited to login attempts (DB-backed); public cart/checkout endpoints are not
   rate-limited by IP in v1.
 - CSP allows inline styles (theme/editor output) and includes inline `application/ld+json` blocks;
-  scripts are restricted to same-origin.
+  scripts are restricted to same-origin. The admin CSP allows `frame-src` only for exact origins of
+  enabled remote plugins; plugin pages are sandboxed and must allow the store origin as an ancestor.
 - The admin preview iframe uses `sandbox="allow-scripts allow-forms"` without `allow-same-origin`.
 - No automatic security headers are applied to edge-served static assets (they contain no dynamic
   content).

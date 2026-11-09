@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import { publicSend } from "./api";
 import { useI18n } from "./i18n";
+import { usePluginNav } from "./plugin-nav";
 import { linkProps, usePath } from "./router";
 import type { Admin } from "./types";
 
@@ -35,6 +36,7 @@ export function Shell({
   const path = usePath();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const pluginNav = usePluginNav();
   const { enabled: i18nEnabled, showSwitcher, locales, locale, setLocale } = useI18n();
 
   async function logout() {
@@ -63,6 +65,28 @@ export function Shell({
               </a>
             );
           })}
+          {pluginNav.length > 0 && (
+            <>
+              <div class="sidebar-section-label">Plugins</div>
+              {pluginNav.map((item) => {
+                const active = path === item.path;
+                return (
+                  <a
+                    key={item.path}
+                    class={`sidebar-link sidebar-link--plugin${active ? " sidebar-link--active" : ""}`}
+                    {...linkProps(item.path)}
+                    onClick={(event) => {
+                      setOpen(false);
+                      linkProps(item.path).onClick(event);
+                    }}
+                  >
+                    <span class="plugin-nav-icon" aria-hidden="true">{pluginIcon(item.icon)}</span>
+                    <span class="plugin-nav-label">{item.label}</span>
+                  </a>
+                );
+              })}
+            </>
+          )}
         </nav>
         <div class="sidebar-footer">
           <a class="sidebar-link" href="/" target="_blank" rel="noopener">View store ↗</a>
@@ -94,4 +118,18 @@ export function Shell({
       </div>
     </div>
   );
+}
+
+function pluginIcon(icon: string | undefined): string {
+  switch (icon) {
+    case "chart": return "▥";
+    case "settings": return "⚙";
+    case "orders": return "▤";
+    case "products": return "▦";
+    case "customers": return "◍";
+    case "mail": return "✉";
+    case "link": return "↗";
+    case "image": return "▧";
+    default: return "◆";
+  }
 }

@@ -1,14 +1,23 @@
 import type { Database } from "@cloudcart/database";
-import type { PluginRow } from "@cloudcart/database";
+import type { PluginHealthStatus, PluginRow, PluginRuntime } from "@cloudcart/database";
 import { decryptSecret, encryptSecret } from "@cloudcart/security";
 import { HttpError, nowIso } from "@cloudcart/shared";
-import type { PluginManifest } from "@cloudcart/plugin-sdk";
+import type { PluginManifest, RemotePluginAdminPage } from "@cloudcart/plugin-sdk";
+import { getRemotePluginRow, storedRemoteManifest } from "./remote-plugins";
 
 export interface PluginView extends PluginRow {
   bundled: boolean;
+  runtime: PluginRuntime;
   capabilities: string[];
   permissions: string[];
   dependencies: string[];
+  manifestUrl: string | null;
+  serviceBaseUrl: string | null;
+  adminEntryUrl: string | null;
+  adminOrigin: string | null;
+  adminPages: RemotePluginAdminPage[];
+  healthStatus: PluginHealthStatus;
+  lastHealthCheckAt: string | null;
 }
 
 /**
@@ -57,21 +66,68 @@ export async function listPlugins(db: Database, registry: PluginRegistry): Promi
       last_error: row?.last_error ?? null,
       installed_at: row?.installed_at ?? nowIso(),
       updated_at: row?.updated_at ?? nowIso(),
+      manifest_url: null,
+      manifest_json: null,
+      service_base_url: null,
+      admin_entry_url: null,
+      admin_origin: null,
+      manifest_hash: null,
+      health_status: "unknown",
+      last_health_check_at: null,
+      uninstalled_at: null,
       bundled: true,
+      runtime: row?.runtime ?? "bundled",
       capabilities: manifest.capabilities,
       permissions: manifest.permissions,
       dependencies: manifest.dependencies ?? [],
+      manifestUrl: null,
+      serviceBaseUrl: null,
+      adminEntryUrl: null,
+      adminOrigin: null,
+      adminPages: [],
+      healthStatus: "unknown",
+      lastHealthCheckAt: null,
     });
     byId.delete(manifest.id);
   }
-  // Rows whose code is not in this build are surfaced honestly as unavailable.
+  // Remote plugins are installed by pointer and are not part of the bundle.
+  // Rows without bundled code and without a remote runtime are surfaced as
+  // unavailable instead of pretending they can run.
   for (const row of byId.values()) {
+    if (row.uninstalled_at) continue;
+    if (row.runtime === "remote") {
+      const manifest = storedRemoteManifest(row);
+      views.push({
+        ...row,
+        bundled: false,
+        runtime: "remote",
+        capabilities: manifest?.capabilities ?? [],
+        permissions: manifest?.permissions ?? [],
+        dependencies: manifest?.dependencies ?? [],
+        manifestUrl: row.manifest_url,
+        serviceBaseUrl: row.service_base_url,
+        adminEntryUrl: row.admin_entry_url,
+        adminOrigin: row.admin_origin,
+        adminPages: manifest?.admin?.pages ?? [],
+        healthStatus: row.health_status,
+        lastHealthCheckAt: row.last_health_check_at,
+      });
+      continue;
+    }
     views.push({
       ...row,
       bundled: false,
+      runtime: "bundled",
       capabilities: [],
       permissions: [],
       dependencies: [],
+      manifestUrl: null,
+      serviceBaseUrl: null,
+      adminEntryUrl: null,
+      adminOrigin: null,
+      adminPages: [],
+      healthStatus: "unknown",
+      lastHealthCheckAt: null,
     });
   }
   return views;
@@ -83,21 +139,30 @@ export async function setPluginEnabled(
   pluginId: string,
   enabled: boolean,
 ): Promise<void> {
+  const now = nowIso();
   if (!registry.has(pluginId)) {
-    throw new HttpError(400, "plugin_not_bundled", "This plugin is not bundled into the current Worker build. Redeploy with the plugin included.");
+    const remote = await getRemotePluginRow(db, pluginId);
+    if (!remote) {
+      throw new HttpError(400, "plugin_not_bundled", "This plugin is not installed or bundled into the current Worker build.");
+    }
+    await db.run("UPDATE plugins SET enabled = ?, updated_at = ? WHERE id = ? AND runtime = 'remote'",
+      [enabled ? 1 : 0, now, pluginId]);
+    return;
   }
   const manifest = registry.get(pluginId)!;
-  const now = nowIso();
   const existing = await db.first<{ id: string }>("SELECT id FROM plugins WHERE id = ?", [pluginId]);
   if (!existing) {
     await db.run(
-      `INSERT INTO plugins (id, name, version, type, description, icon, author, enabled, built_in, last_error, installed_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, ?, ?)`,
+      `INSERT INTO plugins (id, name, version, type, description, icon, author, enabled, built_in, runtime, last_error, installed_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'bundled', NULL, ?, ?)`,
       [manifest.id, manifest.name, manifest.version, manifest.type, manifest.description,
         manifest.icon ?? null, manifest.author ?? null, enabled ? 1 : 0, now, now],
     );
   } else {
-    await db.run("UPDATE plugins SET enabled = ?, updated_at = ? WHERE id = ?", [enabled ? 1 : 0, now, pluginId]);
+    await db.run(
+      "UPDATE plugins SET enabled = ?, runtime = 'bundled', updated_at = ? WHERE id = ?",
+      [enabled ? 1 : 0, now, pluginId],
+    );
   }
 }
 

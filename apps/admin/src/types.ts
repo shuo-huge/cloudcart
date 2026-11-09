@@ -190,16 +190,33 @@ export interface ThemeToken {
   group?: string;
 }
 
+export interface PluginAdminPage {
+  id: string;
+  label: string;
+  icon?: string;
+}
+
 export interface PluginRow {
   id: string;
   name: string;
   version: string;
   type: string;
   description: string;
+  author: string | null;
+  icon: string | null;
   enabled: number;
   bundled: boolean;
+  runtime: "bundled" | "remote";
   capabilities: string[];
   permissions: string[];
   dependencies: string[];
   last_error: string | null;
+  manifestUrl: string | null;
+  serviceBaseUrl: string | null;
+  adminEntryUrl: string | null;
+  adminOrigin: string | null;
+  adminPages: PluginAdminPage[];
+  healthStatus: "unknown" | "ok" | "error";
+  lastHealthCheckAt: string | null;
+  updated_at: string;
 }

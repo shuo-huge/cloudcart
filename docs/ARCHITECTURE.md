@@ -105,6 +105,24 @@ PayPal’s return URL captures server-side, then feeds the **same** event pipeli
   are retried by the next order event or by the admin “Process queue” / “Retry failed” actions.
 - The admin log never returns stored HTML/text bodies.
 
+### Hybrid plugins (bundled + remote)
+- Bundled plugins are statically imported in `apps/worker/src/plugin-registry.ts` and enabled through
+  the `plugins` D1 row. The Worker never downloads code.
+- Remote plugins are installed by Manifest URL. The manifest is fetched over validated HTTPS, hashed,
+  validated, and stored in `plugins.manifest_json`; the per-plugin HMAC service secret is encrypted in
+  `plugin_settings`.
+- The admin sidebar reads enabled remote plugins from `/api/admin/plugins`; `/admin/plugins/:id/:pageId`
+  renders their `admin.entryUrl` in a sandboxed iframe.
+- The iframe sends `cloudcart:ready`; the admin verifies origin/source, calls
+  `POST /api/admin/plugins/:id/launch`, and posts a 5-minute HS256 JWT to the exact plugin origin.
+- Plugin APIs live under `/api/plugin/v1/*` and use a separate bearer-token middleware with
+  permission checks and exact-origin CORS. Admin session cookies are never sent to plugins.
+- `RemotePluginClient` signs outbound requests with the per-plugin service secret
+  (`timestamp\nnonce\nMETHOD\npath\nbodyHash`). Remote payment plugins implement the existing
+  `PaymentPlugin` contract over HTTPS; verified events still go through `processPaymentEvent`.
+- Disabling a remote plugin flips the D1 row, removes its menu, and causes the next plugin API request
+  to fail. Uninstall is a soft delete so historical orders and payment transactions remain.
+
 ## 4. Order state machine
 
 ```
@@ -123,7 +141,7 @@ the customer’s order page.
 ## 5. Data model (D1)
 
 Migrations: `0001_init.sql`, `0002_cart_fields.sql`, `0003_order_fulfilment.sql`,
-`0004_tax_and_email.sql`.
+`0004_tax_and_email.sql`, `0005_remote_plugins.sql`.
 
 Tables: `admins`, `admin_sessions`, `installation_state`, `store_settings`, `products`,
 `product_variants`, `product_images`, `categories`, `product_categories`, `product_tags`,
@@ -131,8 +149,10 @@ Tables: `admins`, `admin_sessions`, `installation_state`, `store_settings`, `pro
 `order_items`, `order_addresses`, `payment_transactions`, `payment_events`, `shipping_zones`,
 `shipping_rates`, `coupons`, `coupon_products`, `coupon_categories`, `coupon_redemptions`,
 `plugins`, `plugin_settings`, `themes`, `theme_settings`, `pages`, `page_versions`, `media`,
-`tax_rates`, `email_outbox`, `audit_logs`, `redirects`, `newsletter_subscribers`, `login_attempts`,
-`resource_usage`.
+`tax_rates`, `email_outbox`, `store_identity`, `audit_logs`, `redirects`, `newsletter_subscribers`,
+`login_attempts`, `resource_usage`. Remote plugin metadata lives as extra `plugins` columns
+(`runtime`, `manifest_*`, `service_base_url`, `admin_entry_url`, `admin_origin`, `health_status`,
+`uninstalled_at`).
 
 Conventions:
 - Money is `INTEGER` minor units; currency is ISO-4217.

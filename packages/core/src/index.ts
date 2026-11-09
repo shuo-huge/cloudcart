@@ -21,5 +21,7 @@ export * from "./storefront";
 export * from "./customers";
 export * from "./dashboard";
 export * from "./plugins";
+export * from "./remote-plugins";
+export * from "./store-identity";
 export * from "./redirects";
 export * from "./newsletter";

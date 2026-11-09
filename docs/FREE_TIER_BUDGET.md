@@ -42,6 +42,9 @@ All of these are **shared across the whole Cloudflare account**, not per store.
   only keys/URLs and metadata are stored.
 - **No polling / cron**: no background jobs or scheduled Workers. Email retries are lazy: they run
   after a new order event or when an administrator presses Process queue.
+- **Remote plugins are pointer-based**: installing one stores a manifest and encrypted secret in D1;
+  it does not add code or a database to the store. Calls to a remote plugin count as outbound
+  subrequests (50 per invocation on Free), and the plugin's own hosting cost belongs to its author.
 - **No unnecessary subrequests**: storefront reads do not call external services. Payment provider
   calls happen only during checkout/webhooks.
 - **Cache-friendly assets**: content-hashed JS/CSS, immutable media caching. HTML is private because

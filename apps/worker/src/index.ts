@@ -1,12 +1,17 @@
-import { Hono } from "hono";
-import { isSafeMediaKey } from "@cloudcart/core";
+import { Hono, type Context } from "hono";
+import { Database } from "@cloudcart/database";
+import { isSafeMediaKey, listEnabledRemoteAdminOrigins } from "@cloudcart/core";
 import { HttpError } from "@cloudcart/shared";
 import { securityHeaders } from "@cloudcart/security";
-import type { AppContext, Env } from "./env";
+import type { AppContext } from "./env";
 import { CLOUDCART_VERSION } from "./env";
 import { adminAuth } from "./middleware";
 import { adminRoutes } from "./routes/admin";
 import { authRoutes, serverSetupPage, serverSetupSubmit } from "./routes/auth";
+import { remotePluginRoutes } from "./routes/remote-plugins";
+import { pluginApiAuth } from "./plugin-api-auth";
+import { pluginApiRoutes } from "./routes/plugin-api";
+import { insecurePluginsAllowed } from "./remote-plugin-service";
 import { publicRoutes } from "./routes/public";
 import { paymentReturnRoutes, webhookRoutes } from "./routes/payments";
 import { storefrontRoutes } from "./routes/storefront";
@@ -69,7 +74,12 @@ app.post("/setup", (c) => serverSetupSubmit(c));
 /* Admin API (login/setup/status are exempt inside the middleware). */
 app.use("/api/admin/*", adminAuth);
 app.route("/api/admin", authRoutes);
+app.route("/api/admin", remotePluginRoutes);
 app.route("/api/admin", adminRoutes);
+
+/* Plugin API: bearer-token auth and exact-origin CORS, not admin sessions. */
+app.use("/api/plugin/v1/*", pluginApiAuth);
+app.route("/api/plugin/v1", pluginApiRoutes);
 
 /* Public storefront API and payment callbacks. */
 app.route("/api", publicRoutes);
@@ -99,7 +109,7 @@ app.get("/media/*", async (c) => {
 });
 
 /* Admin single-page app shell for client-side routes. */
-async function serveAdminShell(c: { env: Env; req: { url: string; raw: Request } }): Promise<Response> {
+async function serveAdminShell(c: Context<AppContext>): Promise<Response> {
   if (!c.env.ASSETS) {
     return new Response("Admin assets are not available.", { status: 503 });
   }
@@ -115,12 +125,25 @@ async function serveAdminShell(c: { env: Env; req: { url: string; raw: Request }
         { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } },
       );
     }
+    let frameOrigins: string[] = [];
+    try {
+      frameOrigins = await listEnabledRemoteAdminOrigins(new Database(c.env.DB));
+    } catch {
+      frameOrigins = [];
+    }
     const headers = new Headers(asset.headers);
     headers.set("Content-Type", "text/html; charset=utf-8");
     headers.set("Cache-Control", "no-store");
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("X-Frame-Options", "DENY");
     headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    const security = securityHeaders({
+      allowInlineStyles: true,
+      allowInlineScripts: false,
+      frameOrigins,
+      allowInsecureFrameOrigins: insecurePluginsAllowed(c.env),
+    });
+    headers.set("Content-Security-Policy", security["Content-Security-Policy"]!);
     return new Response(asset.body, { status: 200, headers });
   } catch {
     return new Response("Admin assets are not available.", { status: 503 });

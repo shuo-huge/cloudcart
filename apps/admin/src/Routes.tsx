@@ -11,6 +11,7 @@ import { PageEditorPage } from "./pages/PageEditor";
 import { PaymentsPage } from "./pages/Payments";
 import { PluginsPage } from "./pages/Plugins";
 import { ProductEditorPage, ProductsPage } from "./pages/Products";
+import { RemotePluginPage } from "./pages/RemotePluginPage";
 import { SeoPage } from "./pages/Seo";
 import { SettingsPage } from "./pages/Settings";
 import { ShippingPage } from "./pages/Shipping";
@@ -37,6 +38,10 @@ export function Routes() {
   const pageEditor = matchRoute(path, "/pages/:slug/edit");
   if (pageEditor) return <PageEditorPage slug={pageEditor.slug!} />;
   if (matchRoute(path, "/themes")) return <ThemesPage />;
+  const remotePluginPage = matchRoute(path, "/plugins/:pluginId/:pageId");
+  if (remotePluginPage) {
+    return <RemotePluginPage pluginId={remotePluginPage.pluginId!} pageId={remotePluginPage.pageId!} />;
+  }
   if (matchRoute(path, "/plugins")) return <PluginsPage />;
   if (matchRoute(path, "/emails")) return <EmailsPage />;
   if (matchRoute(path, "/payments")) return <PaymentsPage />;

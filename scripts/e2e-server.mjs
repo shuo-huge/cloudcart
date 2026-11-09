@@ -15,6 +15,8 @@ import { spawn, spawnSync } from "node:child_process";
 
 const root = path.resolve(import.meta.dirname, "..");
 const port = Number(process.env.E2E_PORT || 8787);
+const pluginPort = Number(process.env.E2E_PLUGIN_PORT || 8788);
+const pluginSecret = "e2e-remote-plugin-secret-123456";
 const host = "127.0.0.1";
 const persistTo = path.join(root, ".wrangler", "e2e");
 const authDir = path.join(root, "e2e", ".auth");
@@ -67,13 +69,13 @@ function assertBuilt() {
   }
 }
 
-function assertPortFree() {
+function assertPortFree(targetPort = port) {
   return new Promise((resolve, reject) => {
-    const socket = net.createConnection({ host, port });
+    const socket = net.createConnection({ host, port: targetPort });
     socket.setTimeout(1000);
     socket.on("connect", () => {
       socket.destroy();
-      reject(new Error(`Port ${port} is already in use. Stop the other process or set E2E_PORT.`));
+      reject(new Error(`Port ${targetPort} is already in use. Stop the other process or set E2E_PORT.`));
     });
     socket.on("timeout", () => {
       socket.destroy();
@@ -90,10 +92,36 @@ function wrangler(args) {
   return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 }
 
+async function waitForUrl(url, timeoutMs = 15_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return;
+    } catch {
+      // Retry until the server accepts connections.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(`Timed out waiting for ${url}`);
+}
+
 async function main() {
   assertBuilt();
-  await assertPortFree();
+  await assertPortFree(port);
+  await assertPortFree(pluginPort);
   ensureSecrets();
+
+  const pluginServer = spawn(process.execPath, [path.join(root, "e2e", "mock-remote-plugin.mjs")], {
+    cwd: root,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      E2E_PLUGIN_PORT: String(pluginPort),
+      E2E_PLUGIN_SECRET: pluginSecret,
+    },
+  });
+  await waitForUrl(`http://${host}:${pluginPort}/cloudcart-plugin.json`);
 
   fs.rmSync(persistTo, { recursive: true, force: true });
 
@@ -102,7 +130,10 @@ async function main() {
     ["exec", "wrangler", "d1", "migrations", "apply", "DB", "--local", "--persist-to", persistTo],
     { cwd: root, stdio: "inherit", env: { ...process.env, CI: "1" }, shell: process.platform === "win32" },
   );
-  if (migration.status !== 0) fail("Local D1 migrations failed.");
+  if (migration.status !== 0) {
+    if (!pluginServer.killed) pluginServer.kill();
+    fail("Local D1 migrations failed.");
+  }
 
   const child = spawn(
     wrangler(),
@@ -112,17 +143,23 @@ async function main() {
       "--ip", host,
       "--inspector-port", String(port + 346),
       "--persist-to", persistTo,
+      "--var", "APP_ENV:e2e",
+      "--var", "PLUGIN_ALLOW_INSECURE_ORIGINS:1",
     ],
     { cwd: root, stdio: "inherit", env: { ...process.env, CI: "1" }, shell: process.platform === "win32" },
   );
 
   const stop = () => {
     if (!child.killed) child.kill();
+    if (!pluginServer.killed) pluginServer.kill();
     process.exit(0);
   };
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
-  child.on("exit", (code) => process.exit(code ?? 0));
+  child.on("exit", (code) => {
+    if (!pluginServer.killed) pluginServer.kill();
+    process.exit(code ?? 0);
+  });
 }
 
 main().catch((error) => fail(error instanceof Error ? error.message : String(error)));

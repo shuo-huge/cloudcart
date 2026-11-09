@@ -291,6 +291,9 @@ export interface CouponRow {
   updated_at: string;
 }
 
+export type PluginRuntime = "bundled" | "remote";
+export type PluginHealthStatus = "unknown" | "ok" | "error";
+
 export interface PluginRow {
   id: string;
   name: string;
@@ -303,6 +306,23 @@ export interface PluginRow {
   built_in: number;
   last_error: string | null;
   installed_at: string;
+  updated_at: string;
+  runtime: PluginRuntime;
+  manifest_url: string | null;
+  manifest_json: string | null;
+  service_base_url: string | null;
+  admin_entry_url: string | null;
+  admin_origin: string | null;
+  manifest_hash: string | null;
+  health_status: PluginHealthStatus;
+  last_health_check_at: string | null;
+  uninstalled_at: string | null;
+}
+
+export interface StoreIdentityRow {
+  id: number;
+  store_id: string;
+  created_at: string;
   updated_at: string;
 }
 

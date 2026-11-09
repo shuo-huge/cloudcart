@@ -13,6 +13,7 @@ import { isoPlusSeconds, newId, nowIso } from "@cloudcart/shared";
 import { writeAuditLog } from "./audit";
 import { ensureDefaultContentPages } from "./pages";
 import { SETTING_KEYS, setSettings } from "./settings";
+import { getOrCreateStoreId } from "./store-identity";
 
 export const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const MAX_FAILURES_PER_EMAIL = 5;
@@ -449,5 +450,6 @@ export async function seedStoreDefaults(db: Database): Promise<void> {
       ),
     ]);
   }
+  await getOrCreateStoreId(db);
   await ensureDefaultContentPages(db);
 }

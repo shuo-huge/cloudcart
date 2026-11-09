@@ -134,7 +134,143 @@ id `email-notifications`, disabled by default).
   exponential backoff. There is no cron trigger.
 - Tests mock the provider (`globalThis.fetch` for Resend or a fake binding for Cloudflare).
 
-## 9. Non-payment plugin types
+## 9. Remote plugin development
+
+Remote plugins run on **your own HTTPS server**. CloudCart never downloads or executes plugin
+JavaScript. A complete runnable example is in [`examples/remote-plugin`](../examples/remote-plugin).
+
+### Manifest
+
+```json
+{
+  "id": "example-analytics",
+  "name": "Example Analytics",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "type": "analytics",
+  "runtime": "remote",
+  "description": "Analytics integration",
+  "author": "Example Developer",
+  "capabilities": ["analytics.read"],
+  "permissions": ["store:read", "products:read"],
+  "service": { "baseUrl": "https://plugin.example.com/api/cloudcart/v1", "auth": "hmac-sha256" },
+  "admin": {
+    "entryUrl": "https://plugin.example.com/admin",
+    "pages": [{ "id": "overview", "label": "Analytics overview", "icon": "chart" }]
+  }
+}
+```
+
+Rules:
+
+- `runtime` must be `remote`; `service.auth` must be `hmac-sha256`.
+- `service.baseUrl` and `admin.entryUrl` must be public HTTPS URLs on port 443 without credentials.
+- Permissions are allow-listed: `store:read`, `products:read`, `orders:read`, `settings:read`,
+  `settings:write`, `events:write`. Unknown or wildcard permissions are rejected.
+- Admin page ids use `[a-z0-9-]`, labels are 1–60 characters, and at most 10 pages are allowed.
+- CloudCart fetches the manifest with a 5-second timeout, 64 KiB limit, and validated HTTPS redirects.
+
+### Install and service secret
+
+In **Admin → Plugins → Install remote plugin**, the merchant previews the manifest and installs it.
+CloudCart stores the manifest (hash-pinned) and an encrypted per-plugin service secret
+(`plugin_settings._serviceSecret`). The secret is shown once if CloudCart generated it; otherwise the
+merchant can paste the secret already configured on the plugin server.
+
+The plugin is installed disabled. Enabling it runs a non-blocking health check against
+`GET {service.baseUrl}/health`.
+
+### HMAC service requests
+
+Every CloudCart → plugin request includes:
+
+```text
+x-cloudcart-plugin: <plugin id>
+x-cloudcart-store-id: <store id>
+x-cloudcart-timestamp: <ISO timestamp>
+x-cloudcart-nonce: <random>
+x-cloudcart-signature: <base64url HMAC-SHA256>
+```
+
+Canonical string (newline separated):
+
+```text
+timestamp
+nonce
+METHOD
+/path?query
+sha256_hex(body)
+```
+
+Signature = `base64url(HMAC-SHA256(serviceSecret, canonical))`. Verify the timestamp freshness,
+reject replayed nonces, and compare signatures in constant time. Never log the secret.
+
+### iframe handshake
+
+The remote admin page is embedded with
+`sandbox="allow-scripts allow-forms allow-same-origin"` and must allow the store origin:
+
+```http
+Content-Security-Policy: frame-ancestors https://your-store.workers.dev
+```
+
+Protocol:
+
+1. The plugin derives the parent origin from `document.referrer` (never use `"*"`) and sends
+   `{ type: "cloudcart:ready", pageId }`.
+2. CloudCart verifies `event.origin` and `event.source`, then calls
+   `POST /api/admin/plugins/:id/launch` (admin session + CSRF).
+3. CloudCart posts `{ type: "cloudcart:token", token, expiresAt, storeId, pluginId, pageId,
+   permissions }` to the exact plugin origin.
+4. The plugin keeps the token in memory and calls `/api/plugin/v1/*` with
+   `Authorization: Bearer <token>`.
+5. The plugin may send `{ type: "cloudcart:refresh-token" }`; CloudCart reissues a token.
+
+CloudCart's admin CSP adds the exact `frame-src` origin of each enabled remote plugin; it never uses a
+wildcard. The admin itself is not frameable (`frame-ancestors 'none'`, `X-Frame-Options: DENY`).
+
+### Token and API
+
+The JWT is HS256, valid for 5 minutes, and contains `iss`, `aud`, `plugin_id`, `store_id`,
+`admin_id`, `permissions`, `iat`, `exp`, `jti`. The signing key is derived from `APP_MASTER_KEY` with
+a dedicated HKDF domain. Tokens are not accepted by `/api/admin/*`.
+
+Available endpoints (permission in parentheses):
+
+| Endpoint | Permission |
+|---|---|
+| `GET /api/plugin/v1/store` | `store:read` |
+| `GET /api/plugin/v1/products`, `/products/:id` | `products:read` |
+| `GET /api/plugin/v1/orders`, `/orders/:id` | `orders:read` |
+| `GET/PUT /api/plugin/v1/settings` | `settings:read` / `settings:write` |
+| `POST /api/plugin/v1/events` | `events:write` |
+| `GET /api/plugin/v1/health` | authenticated |
+
+CORS is an exact allow-list of enabled plugin `admin_origin` values; wildcards are not used. A
+disabled plugin invalidates its outstanding tokens on the next request.
+
+### Remote payment plugins
+
+Implement the `PaymentPlugin` contract over signed HTTPS endpoints:
+
+- `POST /payments/validate`
+- `POST /payments/checkout`
+- `POST /payments/verify-webhook` — verify the provider signature and return a CloudCart
+  `PaymentEvent` including the internal `orderId`
+- `POST /payments/status`
+- `POST /payments/capture`
+- `POST /payments/refund`
+
+CloudCart forwards provider webhooks to `verify-webhook`, then runs the returned event through its
+existing amount/currency/idempotency checks. A remote plugin never marks an order paid directly.
+
+### Local development
+
+Remote URLs must be HTTPS in production. For local development, CloudCart accepts
+`http://127.0.0.1` / `http://localhost` only when `PLUGIN_ALLOW_INSECURE_ORIGINS=1` **and**
+`APP_ENV` is `development`, `test`, or `e2e`. Never enable this in production.
+
+## 10. Non-payment plugin types
 
 Shipping, marketing, SEO, analytics, product, customer and notification plugins use the same
 manifest/registry model. Their hooks are intentionally narrow in v1; a plugin can read core data

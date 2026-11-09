@@ -14,7 +14,8 @@ import type { Context } from "hono";
 import type { AppContext } from "../env";
 import { db, jsonError } from "../lib";
 import { notifyOrderEvent } from "../email";
-import { getPaymentPlugin } from "../plugin-registry";
+import { resolvePaymentPlugin } from "../payment-plugin-resolver";
+import { getRemotePluginRow } from "@cloudcart/core";
 
 export const webhookRoutes = new Hono<AppContext>();
 export const paymentReturnRoutes = new Hono<AppContext>();
@@ -38,17 +39,30 @@ export function orderSnapshot(detail: Awaited<ReturnType<typeof getOrderDetail>>
 
 webhookRoutes.post("/:plugin", async (c) => {
   const pluginId = c.req.param("plugin");
-  if (pluginId !== "stripe" && pluginId !== "paypal") {
+  if (!/^[a-z0-9-]{1,60}$/.test(pluginId)) {
     return jsonError(c, 404, "unknown_plugin", "Unknown payment provider.");
   }
-  const plugin = getPaymentPlugin(pluginId);
-  if (!plugin) return jsonError(c, 404, "unknown_plugin", "Unknown payment provider.");
   if (!c.env.APP_MASTER_KEY) return jsonError(c, 500, "not_configured", "APP_MASTER_KEY is not configured.");
+  const plugin = await resolvePaymentPlugin(db(c), c.env.APP_MASTER_KEY, pluginId, { includeDisabled: true });
+  if (!plugin) return jsonError(c, 404, "unknown_plugin", "Unknown payment provider.");
 
   try {
     const config = await loadPaymentRuntimeConfig(db(c), pluginId, c.env.APP_MASTER_KEY);
     const event = await plugin.verifyWebhook(c.req.raw, config);
     assertEventShape(event);
+    const remote = await getRemotePluginRow(db(c), pluginId);
+    if (remote) {
+      if (!event.orderId) {
+        throw new HttpError(400, "invalid_webhook", "Remote payment events must include the internal order id.");
+      }
+      const order = await db(c).first<{ payment_method: string | null }>(
+        "SELECT payment_method FROM orders WHERE id = ?",
+        [event.orderId],
+      );
+      if (!order || order.payment_method !== pluginId) {
+        throw new HttpError(400, "invalid_webhook", "The payment event does not belong to this plugin.");
+      }
+    }
     const outcome = await processPaymentEvent(db(c), pluginId, event);
     if (outcome.result === "processed" && outcome.orderId) {
       try {
@@ -102,7 +116,7 @@ paymentReturnRoutes.get("/paypal/return", async (c) => {
     return c.redirect(`/orders/${access}?payment=error`, 302);
   }
 
-  const plugin = getPaymentPlugin("paypal");
+  const plugin = await resolvePaymentPlugin(database, c.env.APP_MASTER_KEY, "paypal", { includeDisabled: true });
   if (!plugin?.captureOrder) return c.redirect(`/orders/${access}?payment=error`, 302);
   const config = await loadPaymentRuntimeConfig(database, "paypal", c.env.APP_MASTER_KEY);
   const snapshot = orderSnapshot(detail);
@@ -152,7 +166,7 @@ export async function retryPayment(c: Context<AppContext>, orderId: string): Pro
     return c.redirect(`/orders/${await createOrderAccessToken(c.env.APP_MASTER_KEY, orderId)}`, 302);
   }
   const method = detail.order.payment_method ?? "";
-  const plugin = getPaymentPlugin(method);
+  const plugin = await resolvePaymentPlugin(db(c), c.env.APP_MASTER_KEY, method);
   if (!plugin || method === "manual") {
     throw new HttpError(400, "no_payment_provider", "This order has no online payment provider.");
   }
