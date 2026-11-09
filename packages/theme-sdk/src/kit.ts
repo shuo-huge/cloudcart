@@ -777,6 +777,15 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
       <div class="tk-summary-row"><span>Subtotal</span><span>${formatMoney(data.subtotalCents, data.currency)}</span></div>
       ${data.discountCents > 0 ? `<div class="tk-summary-row"><span>Discount</span><span>−${formatMoney(data.discountCents, data.currency)}</span></div>` : ""}
       <div class="tk-summary-row"><span>Shipping</span><span>${data.shippingCents > 0 ? formatMoney(data.shippingCents, data.currency) : "At checkout"}</span></div>
+      ${data.taxIncluded
+        ? data.taxCents > 0
+          ? `<div class="tk-summary-row"><span>${escapeHtml(data.taxName ?? "Tax")} (included)</span><span>${formatMoney(data.taxCents, data.currency)}</span></div>`
+          : `<div class="tk-summary-row"><span>Tax</span><span>Included in prices</span></div>`
+        : data.taxPending
+          ? `<div class="tk-summary-row"><span>Tax</span><span>Calculated at checkout</span></div>`
+          : data.taxCents > 0
+            ? `<div class="tk-summary-row"><span>${escapeHtml(data.taxName ?? "Tax")}</span><span>${formatMoney(data.taxCents, data.currency)}</span></div>`
+            : ""}
       <div class="tk-summary-row tk-summary-row--total"><span>Total</span><span>${formatMoney(data.totalCents, data.currency)}</span></div>
       <form class="tk-coupon" data-coupon-form>
         <input name="code" value="${escapeAttr(data.couponCode ?? "")}" placeholder="Discount code" aria-label="Discount code">
@@ -926,6 +935,15 @@ export function createTheme(config: ThemeKitConfig): ThemeDefinition {
             <div class="tk-summary-row" style="margin-top:12px"><span>Subtotal</span><span>${formatMoney(data.cart.subtotalCents, data.cart.currency)}</span></div>
             ${data.cart.discountCents > 0 ? `<div class="tk-summary-row"><span>Discount</span><span>−${formatMoney(data.cart.discountCents, data.cart.currency)}</span></div>` : ""}
             <div class="tk-summary-row"><span>Shipping</span><span>${formatMoney(data.cart.shippingCents, data.cart.currency)}</span></div>
+            ${data.cart.taxIncluded
+              ? data.cart.taxCents > 0
+                ? `<div class="tk-summary-row"><span>${escapeHtml(data.cart.taxName ?? "Tax")} (included)</span><span>${formatMoney(data.cart.taxCents, data.cart.currency)}</span></div>`
+                : `<div class="tk-summary-row"><span>Tax</span><span>Included in prices</span></div>`
+              : data.cart.taxPending
+                ? `<div class="tk-summary-row"><span>Tax</span><span>Calculated at checkout</span></div>`
+                : data.cart.taxCents > 0
+                  ? `<div class="tk-summary-row"><span>${escapeHtml(data.cart.taxName ?? "Tax")}</span><span>${formatMoney(data.cart.taxCents, data.cart.currency)}</span></div>`
+                  : ""}
             <div class="tk-summary-row tk-summary-row--total"><span>Total</span><span>${formatMoney(data.cart.totalCents, data.cart.currency)}</span></div>
           </aside>
         </form>

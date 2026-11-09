@@ -1,17 +1,19 @@
-# CloudCart storefront upgrade (v0.2, in progress)
+# CloudCart storefront upgrade (v0.2)
 
-The improvements on this branch are designed for existing single-store CloudCart deployments.
+This upgrade is merged into `main` through PR #1 and applies to existing single-store CloudCart deployments.
 
-## Added in this change
+## Included
 
 - Eight standard content page drafts: About Us, Contact Us, FAQ, Shipping Policy, Returns & Refunds, Privacy Policy, Terms of Service, and Payment Policy.
 - Drafts are created during new-store setup and when existing store owners open Page Builder. Existing pages with matching slugs are never replaced.
 - Policy and customer-information drafts require merchant review and explicit publishing.
-- Existing theme renderers now handle the full page section document instead of discarding all but rich text.
+- Existing theme renderers handle the full page section document instead of discarding all but rich text.
 - Default and seven theme-kit storefronts include published legal/customer page links in their footers. Unpublished policy pages are never linked.
 - Custom content pages can be created in Page Builder.
-- Content-page preview now shows the actual draft; sitemap excludes unpublished pages.
-- Added a store-page regression test.
+- Content-page preview shows the actual draft; sitemap excludes unpublished pages.
+- A store-page regression test covers draft visibility, preview, publish and sitemap behaviour.
+- Page versions can now be restored into the draft; publishing after a restore creates a new immutable version.
+- Checkout now calculates tax, and order emails use a D1 outbox with retry and an admin log.
 
 ## Before publicly launching a store
 
@@ -22,16 +24,13 @@ The improvements on this branch are designed for existing single-store CloudCart
 
 ## Verification
 
-This commit was authored through the connected GitHub API. TypeScript compilation,
-Vitest and local browser smoke tests have **not yet been executed in this session**.
-Use the repository commands:
+Verified on 2026-11-09:
 
 ```sh
-pnpm install
 pnpm typecheck
-pnpm test
+pnpm test        # 8 files, 49 tests
 pnpm build
-pnpm exec wrangler deploy --dry-run
+pnpm test:e2e    # Playwright: setup, login, editor drag, responsive, images, emails, themes, checkout
 ```
 
-No live Cloudflare resources were changed by these commits.
+No live Cloudflare resources or payment-provider sandbox accounts were used by this verification.

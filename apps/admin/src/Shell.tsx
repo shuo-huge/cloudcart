@@ -15,6 +15,7 @@ const NAV = [
   { path: "/pages", label: "Page Builder" },
   { path: "/themes", label: "Themes" },
   { path: "/plugins", label: "Plugins" },
+  { path: "/emails", label: "Emails" },
   { path: "/payments", label: "Payments" },
   { path: "/shipping", label: "Shipping" },
   { path: "/seo", label: "SEO" },

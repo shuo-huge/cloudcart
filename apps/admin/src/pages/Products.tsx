@@ -1,5 +1,6 @@
 import { formatDate, formatMoney, moneyToInput } from "@cloudcart/shared";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
+import Sortable from "sortablejs";
 import { adminGet, adminSend } from "../api";
 import {
   DataTable,
@@ -14,7 +15,7 @@ import {
   useAsync,
 } from "../components";
 import { linkProps, navigate } from "../router";
-import type { Category, Product, ProductVariant } from "../types";
+import type { Category, Product, ProductImage, ProductVariant } from "../types";
 
 function mediaUrl(key: string | null): string {
   if (!key) return "";
@@ -181,6 +182,7 @@ export function ProductEditorPage({ id }: { id: string | null }) {
   const [externalImageUrl, setExternalImageUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showMedia, setShowMedia] = useState(false);
+  const mediaGridRef = useRef<HTMLDivElement>(null);
 
   async function load() {
     setLoading(true);
@@ -225,6 +227,38 @@ export function ProductEditorPage({ id }: { id: string | null }) {
   }
 
   useEffect(() => { void load(); }, [id]);
+
+  async function saveImageOrder(images: ProductImage[]): Promise<void> {
+    if (!id) return;
+    setProduct((current) => current ? { ...current, images } : current);
+    try {
+      await adminSend(`/products/${id}/images/order`, "PUT", { imageIds: images.map((image) => image.id) });
+      toast("Image order saved.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Could not save the image order.", "error");
+      await load();
+    }
+  }
+
+  useEffect(() => {
+    if (loading || !mediaGridRef.current || !product || !id) return;
+    const sortable = Sortable.create(mediaGridRef.current, {
+      animation: 150,
+      handle: ".media-drag-handle",
+      ghostClass: "media-tile--ghost",
+      forceFallback: true,
+      onEnd: (event) => {
+        if (event.oldIndex === undefined || event.newIndex === undefined || event.oldIndex === event.newIndex) return;
+        const images = [...(product.images ?? [])];
+        const [moved] = images.splice(event.oldIndex, 1);
+        if (!moved) return;
+        images.splice(event.newIndex, 0, moved);
+        void saveImageOrder(images);
+      },
+    });
+    return () => sortable.destroy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.images, id, loading]);
 
   function update<K extends keyof EditorState>(key: K, value: EditorState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -356,15 +390,18 @@ export function ProductEditorPage({ id }: { id: string | null }) {
             {!id && <p class="muted">Save the product to add images.</p>}
             {id && (
               <>
-                <div class="media-grid">
-                  {(product?.images ?? []).map((image) => (
-                    <figure class="media-tile" key={image.id}>
+                <div class="media-grid" ref={mediaGridRef}>
+                  {(product?.images ?? []).map((image, index) => (
+                    <figure class="media-tile" key={image.id} data-image-id={image.id}>
+                      <span class="media-drag-handle" title="Drag to reorder">⠿</span>
+                      {index === 0 && <span class="media-cover-badge">Cover</span>}
                       <img src={mediaUrl(image.r2_key)} alt={image.alt} loading="lazy" />
                       <button type="button" class="media-remove" onClick={() => removeImage(image.id)} aria-label="Remove image">×</button>
                     </figure>
                   ))}
 
                 </div>
+                <p class="muted small">Drag to reorder. The first image is the storefront cover.</p>
                 <div class="field">
                   <span class="field-label">External image URL</span>
                   <div class="row-actions">

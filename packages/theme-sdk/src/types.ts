@@ -97,6 +97,11 @@ export interface CartData {
   couponCode: string | null;
   discountCents: number;
   shippingCents: number;
+  taxCents: number;
+  taxName: string | null;
+  taxRateBps: number;
+  taxIncluded: boolean;
+  taxPending: boolean;
   totalCents: number;
   error?: string;
 }

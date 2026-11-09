@@ -5,9 +5,11 @@ import {
   getOrderByAccessToken,
   getOrderDetail,
   getOrCreateCart,
+  isEmailNotificationsEnabled,
   isPaymentMethodEnabled,
   loadPaymentRuntimeConfig,
   parseOrderAccessToken,
+  parseOrderTax,
   resolveRedirect,
   Storefront,
   type OrderDetail,
@@ -29,6 +31,7 @@ import {
   type StorefrontRuntime,
 } from "../lib";
 import { getPaymentPlugin } from "../plugin-registry";
+import { notifyOrderEvent } from "../email";
 import { orderSnapshot, retryPayment } from "./payments";
 
 export const storefrontRoutes = new Hono<AppContext>();
@@ -192,6 +195,23 @@ storefrontRoutes.post("/checkout", async (c) => {
       userAgent: c.req.header("user-agent") ?? null,
     });
     clearCartCookie(c);
+
+    try {
+      const manualSettings = paymentMethod === "manual"
+        ? await loadManualSettings(runtime.db)
+        : null;
+      await notifyOrderEvent(c, "order.placed", created.order.id, {
+        manualInstructionsHtml: manualSettings
+          ? renderManualInstructions(manualSettings, created.order.currency, created.order.total_cents)
+          : undefined,
+      });
+    } catch (emailError) {
+      console.error(JSON.stringify({
+        level: "error",
+        scope: "order_email",
+        message: emailError instanceof Error ? emailError.message : String(emailError),
+      }));
+    }
 
     let redirectUrl = created.redirectUrl;
     if (paymentPlugin) {
@@ -358,6 +378,8 @@ async function orderConfirmationBody(
 ): Promise<string> {
   const order = detail.order;
   const address = detail.addresses.find((item) => item.type === "shipping");
+  const tax = parseOrderTax(order.metadata_json);
+  const emailsEnabled = await isEmailNotificationsEnabled(runtime.db);
   const items = detail.items.map((item) => `
     <div class="cc-order-line">
       <span>${escapeHtml(item.name)} × ${item.quantity}</span>
@@ -409,12 +431,15 @@ async function orderConfirmationBody(
         <div class="cc-summary-row" style="margin-top:16px"><span>Subtotal</span><span>${formatMoney(order.subtotal_cents, order.currency)}</span></div>
         ${order.discount_cents > 0 ? `<div class="cc-summary-row"><span>Discount</span><span>−${formatMoney(order.discount_cents, order.currency)}</span></div>` : ""}
         <div class="cc-summary-row"><span>Shipping</span><span>${formatMoney(order.shipping_cents, order.currency)}</span></div>
+        ${tax && tax.rateBps > 0
+          ? `<div class="cc-summary-row"><span>${escapeHtml(tax.name)}${tax.included ? " (included)" : ""}</span><span>${formatMoney(order.tax_cents, order.currency)}</span></div>`
+          : ""}
         <div class="cc-summary-row cc-summary-row--total"><span>Total</span><span>${formatMoney(order.total_cents, order.currency)}</span></div>
       </div>
       <aside class="cc-summary">
         <h2 style="font-size:1.1rem">Shipping address</h2>
         ${address ? `<p style="font-size:.9rem;line-height:1.7">${escapeHtml(address.name)}<br>${escapeHtml(address.line1)}${address.line2 ? `<br>${escapeHtml(address.line2)}` : ""}<br>${escapeHtml(address.city)}${address.state ? `, ${escapeHtml(address.state)}` : ""} ${escapeHtml(address.postal_code)}<br>${escapeHtml(address.country)}</p>` : ""}
-        <p class="cc-muted" style="font-size:.85rem">Save this private order link to view updates. Email delivery is not configured.</p>
+        <p class="cc-muted" style="font-size:.85rem">Save this private order link to view updates.${emailsEnabled ? " Order updates will also be sent by email." : " Email delivery is not configured."}</p>
         <a class="cc-button cc-button--block" href="/products">Continue shopping</a>
       </aside>
     </div>

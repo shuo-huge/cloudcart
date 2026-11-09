@@ -11,7 +11,7 @@ One Worker · One D1 database · External image URLs · Optional R2
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![D1](https://img.shields.io/badge/Database-D1-0051FF)](https://developers.cloudflare.com/d1/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-28%20passing-brightgreen)](docs/TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-49%20passing-brightgreen)](docs/TEST_REPORT.md)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Architecture](docs/ARCHITECTURE.md) · [Deployment](docs/DEPLOYMENT.md)
 
@@ -57,7 +57,7 @@ CloudCart exists because most ecommerce stacks force you to choose between payin
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
-Cloudflare deploys CloudCart into **your** account and provisions D1. R2 is optional. You do not need to create or paste any secrets: the deployment script automatically generates `APP_MASTER_KEY` and `SETUP_TOKEN`, stores them as Worker secrets, and prints a private one-time setup URL in the successful deployment log.
+Cloudflare deploys CloudCart into **your** account and provisions D1. R2 is optional. The button uses the repository's root `build` and `deploy` scripts: it builds the storefront/admin, then runs `scripts/deploy.mjs`. You do not need to create or paste any secrets: the script automatically generates `APP_MASTER_KEY` and `SETUP_TOKEN`, stores them as Worker secrets, and prints a private one-time setup URL in the deployment log.
 
 Open the **Setup link** from the latest successful deployment log. The setup page asks only for the administrator name, email and password. Store name and currency use sensible defaults and can be changed later in Admin → Settings. The setup token is carried in the private URL and is not shown as a form field.
 
@@ -74,13 +74,13 @@ pnpm run deploy:cloudflare
 
 The CLI checks Node, Wrangler and Cloudflare login, then:
 
-1. finds or creates a D1 database,
-3. writes the real IDs into `wrangler.jsonc`,
-4. builds the storefront and admin,
-5. applies remote migrations,
-6. deploys the Worker,
-7. preserves `APP_MASTER_KEY` and creates or refreshes the one-time setup token while the store is uninstalled,
-8. prints the store URL, admin URL and one-time setup link.
+1. finds or creates a D1 database (reusing a database provisioned by the Deploy Button when present),
+2. writes the real IDs into `wrangler.jsonc`,
+3. builds the storefront and admin,
+4. applies remote migrations through the `DB` binding,
+5. deploys the Worker,
+6. preserves `APP_MASTER_KEY` and creates or refreshes the one-time setup token while the store is uninstalled,
+7. prints the store URL, admin URL and one-time setup link.
 
 Re-running is safe: existing resources and secrets are reused, and no data is overwritten.
 
@@ -93,7 +93,7 @@ pnpm run deploy:cloudflare -- --check           # non-mutating environment check
 
 ## Local development
 
-Requirements: Node.js 20+ and pnpm 10+.
+Requirements: Node.js 20+ (CI uses 24; `.nvmrc` pins 22) and pnpm 10+ (`packageManager` pins 12.16.1).
 
 ```bash
 pnpm install
@@ -102,6 +102,13 @@ pnpm dev
 ```
 
 `pnpm dev` creates local-only random secrets in `.dev.vars` automatically and prints a one-time setup URL. Existing local secrets are preserved between runs.
+
+Browser end-to-end tests use Playwright against an isolated local D1 database:
+
+```bash
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
 
 | URL | Purpose |
 |---|---|
@@ -119,20 +126,18 @@ pnpm dev
 Server-rendered HTML for home, collections, search, product pages, cart, checkout and content pages. Meta tags, canonical URLs, Open Graph, Twitter cards, Product/Breadcrumb/Website JSON-LD, `sitemap.xml`, `robots.txt`, and 301 redirects are built in. Product names and descriptions are crawlable without JavaScript.
 
 ### Admin
-Dashboard, products and variants, categories, external image URLs (optional R2 uploads), orders, customers, discounts, shipping zones and rates, themes, visual page builder, plugins, payment configuration, media library, store settings, SEO redirects, audit log, and local resource estimates.
+Dashboard, products and variants, categories, external image URLs (optional R2 uploads), drag-reordered product image galleries, orders, customers, discounts, shipping zones and rates, tax rates, themes, visual page builder with version restore, plugins, email notifications with an outbox log, payment configuration, media library, store settings, SEO redirects, audit log, and local resource estimates.
 
 ### Commerce core
-Server-side revalidation of prices, stock, coupons and shipping on every checkout. Integer minor-unit money, order snapshots, atomic stock reservation with compensation, an explicit order state machine, manual payment confirmation with an audit trail, and manual shipment tracking.
+Server-side revalidation of prices, stock, coupons, shipping and tax on every checkout. Integer minor-unit money, order snapshots, atomic stock reservation with compensation, an explicit order state machine, manual payment confirmation with an audit trail, and manual shipment tracking. Tax supports country/region rate rules, a default rate, and tax-inclusive or tax-exclusive pricing; tax is included in the order total sent to payment providers.
 
 ### 8 bundled themes
 Default, Fashion, Beauty, Electronics, Jewelry, Home, Sports, and Single Product. Each has a different layout, typography and card structure, not just a colour swap. All support the same Theme SDK and design tokens.
 
-| Default | Fashion | Electronics | Sports |
-|---|---|---|---|
-| ![Default](apps/storefront/public/themes/default.svg) | ![Fashion](apps/storefront/public/themes/fashion.svg) | ![Electronics](apps/storefront/public/themes/electronics.svg) | ![Sports](apps/storefront/public/themes/sports.svg) |
+Theme gallery previews come from a single 4×2 WebP atlas (`apps/storefront/public/themes/theme-previews-atlas.webp`) cropped with CSS, plus a full-size preview modal in Admin → Themes. They are illustrative artwork, not screenshots of a running store.
 
 ### Visual page editor
-Three-column editor with SortableJS drag ordering, add/remove/duplicate/hide sections, per-section content and style fields, live preview at desktop/tablet/mobile widths, autosaved drafts, undo/redo, publish, and immutable version snapshots. Page JSON is schema-validated and custom HTML is sanitised.
+Three-column editor with SortableJS drag ordering, add/remove/duplicate/hide sections, per-section content and style fields, live preview at desktop/tablet/mobile widths, autosaved drafts, undo/redo, publish, immutable version snapshots, and restore-into-draft from any published version. Page JSON is schema-validated and custom HTML is sanitised.
 
 ![Chinese admin login](docs/images/admin-login-zh.png)
 
@@ -144,7 +149,7 @@ Three-column editor with SortableJS drag ordering, add/remove/duplicate/hide sec
 Provider credentials are AES-GCM encrypted with a key derived from `APP_MASTER_KEY` and never returned to the browser.
 
 ### Plugins
-Build-time bundled, runtime enabled/disabled, with D1-backed settings. The registry rejects plugins that are not in the current build. Included: Manual, Stripe, PayPal, and the **Admin Language Pack** (English / 简体中文, default language and switcher).
+Build-time bundled, runtime enabled/disabled, with D1-backed settings. The registry rejects plugins that are not in the current build. Included: Manual, Stripe, PayPal, the **Admin Language Pack** (English / 简体中文), and **Email Notifications** (Resend or Cloudflare Email Workers, D1 outbox with retries and an admin log; disabled by default).
 
 ### Security
 PBKDF2 passwords, HMAC-bound session cookies, CSRF double-submit, login rate limiting, prepared statements everywhere, an allow-list HTML sanitiser, magic-byte image validation, open-redirect protection, verified webhooks, and audit logging.
@@ -171,9 +176,9 @@ packages/database D1 wrapper, row types, resource guard
 packages/security Web Crypto, sessions, secret encryption, sanitising
 packages/shared   money, ids, slugs, types
 packages/plugin-sdk, theme-sdk, ui
-plugins/          admin/i18n, payments/{manual,stripe,paypal}
+plugins/          admin/i18n, payments/{manual,stripe,paypal}, notifications/email
 themes/           8 bundled themes
-migrations/       3 D1 migrations
+migrations/       4 D1 migrations
 scripts/          deploy CLI and asset preparation
 tests/            workerd integration tests
 docs/             architecture, plugin/theme/payment/deployment/security/testing docs
@@ -185,16 +190,17 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design, order sta
 
 ## Project status
 
-**v0.1.0 — functional, not yet declared 1.0.** The repository is honest about what works and what does not.
+**v0.2.0 — functional, not yet declared 1.0.** The repository is honest about what works and what does not.
 
-Implemented and tested: setup/login/CSRF, products/categories/media, server cart, guest checkout, stock reservation, manual payment, order fulfilment, 8 themes, page editor draft/preview/publish, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, 28 workerd tests.
+Implemented and tested: setup/login/CSRF, products/categories/media, drag-reordered product images, server cart, guest checkout, stock reservation, tax calculation (inclusive/exclusive, country/region rules), manual payment, order fulfilment, 8 themes, page editor draft/preview/publish with version restore, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, email notifications with a D1 outbox and provider retries, 49 workerd tests, and 7 Playwright browser specs.
 
 Not yet verified or missing:
-- No live Stripe/PayPal Sandbox transaction has been run in this repository; provider APIs are mocked in tests.
-- No real Cloudflare deployment was executed while building this release; the deploy CLI's environment check passes.
+- No live Stripe/PayPal Sandbox transaction has been run in this repository; provider APIs are mocked in tests. Sandbox credentials are still to be supplied.
+- A Workers Builds deployment succeeded in the maintainer's Cloudflare account, but this change set has not been re-deployed.
 - PayPal uses hosted approval redirects, not embedded Smart Buttons.
-- No email delivery, tax calculation, page-version restore, or image reordering yet.
-- Theme previews are original SVG artwork, not screenshots of a running store.
+- No live email provider delivery has been exercised; Resend and Cloudflare transports are mocked or unit-tested.
+- No tax-exempt customer certificates or per-product tax classes.
+- Theme previews are illustrative raster tiles in a WebP atlas, not screenshots of a running store.
 
 See [docs/TEST_REPORT.md](docs/TEST_REPORT.md) for the exact verification matrix and known gaps.
 

@@ -190,7 +190,7 @@ CloudCart — 免费部署、插件化、可视化主题编辑的轻量电商系
 - Vitest
 - Cloudflare Workers Vitest integration
 - Miniflare / Wrangler local development
-- Playwright（仅开发测试依赖）
+- Playwright（仅开发测试依赖，已集成 `e2e/` 浏览器测试）
 
 ## Package Management
 

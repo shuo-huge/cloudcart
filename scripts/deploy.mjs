@@ -177,7 +177,7 @@ async function main() {
   } else {
     log(`  Worker name: ${workerName}`);
   }
-  const dbName = state.d1Name || workerName;
+  let dbName = state.d1Name || workerName;
 
   if (flags.has("--check")) {
     log("Environment check passed. No resources were changed.");
@@ -186,12 +186,29 @@ async function main() {
 
   step("Finding or creating the D1 database");
   let dbId = null;
+  // The Deploy to Cloudflare button provisions D1 from wrangler.jsonc and
+  // writes a real database_id back before this script runs. Prefer that
+  // binding when it belongs to the current account; otherwise fall back to
+  // the CloudCart-managed database name. This avoids creating a second
+  // database when a one-click deployment picks a different name.
+  const configuredDatabase = Array.isArray(config.d1_databases) ? config.d1_databases[0] : null;
   const d1List = wrangler(["d1", "list", "--json"], { capture: true, allowFailure: true });
   if (d1List.status === 0) {
     try {
       const databases = JSON.parse(d1List.stdout);
-      const found = databases.find((database) => database.name === dbName);
-      if (found) dbId = found.uuid || found.id || null;
+      if (configuredDatabase?.database_id) {
+        const configured = databases.find(
+          (database) => (database.uuid || database.id) === configuredDatabase.database_id,
+        );
+        if (configured) {
+          dbId = configured.uuid || configured.id || null;
+          dbName = configured.name || configuredDatabase.database_name || dbName;
+        }
+      }
+      if (!dbId) {
+        const found = databases.find((database) => database.name === dbName);
+        if (found) dbId = found.uuid || found.id || null;
+      }
     } catch {
       // fall through to text parsing
     }
@@ -237,7 +254,10 @@ async function main() {
   }
 
   step("Applying database migrations (remote)");
-  const migration = wrangler(["d1", "migrations", "apply", dbName, "--remote"], { capture: true, input: "y\n" });
+  // Reference the binding name rather than the database name. Cloudflare's
+  // one-click deployment may let the user rename the database, while the
+  // binding written above is always DB.
+  const migration = wrangler(["d1", "migrations", "apply", "DB", "--remote"], { capture: true, input: "y\n" });
   if (migration.status !== 0) {
     process.stderr.write(migration.stdout);
     process.stderr.write(migration.stderr);

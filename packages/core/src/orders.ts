@@ -20,6 +20,7 @@ import {
 import { z } from "zod";
 import { loadCart } from "./cart";
 import { resolveShippingRate } from "./shipping";
+import { orderTotalWithTax, resolveTaxRate, taxAmountCents, taxableBaseCents } from "./tax";
 
 export const checkoutSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -102,6 +103,7 @@ export async function createOrderFromCart(ctx: CheckoutContext): Promise<Created
   const { db, cart, input } = ctx;
   const view = await loadCart(db, cart, {
     country: input.country,
+    region: input.state,
     shippingRateId: input.shippingRateId ?? cart.shipping_rate_id,
     includeShipping: true,
   });
@@ -123,7 +125,22 @@ export async function createOrderFromCart(ctx: CheckoutContext): Promise<Created
     input.country,
     view.subtotalCents,
   );
-  const totalCents = Math.max(0, view.subtotalCents - view.discountCents + shipping.priceCents);
+  const taxRate = await resolveTaxRate(db, input.country, input.state);
+  const taxCents = taxAmountCents(
+    taxableBaseCents(view.subtotalCents, view.discountCents, shipping.priceCents),
+    taxRate.rateBps,
+    taxRate.included,
+  );
+  const totalCents = orderTotalWithTax(
+    view.subtotalCents,
+    view.discountCents,
+    shipping.priceCents,
+    taxCents,
+    taxRate.included,
+  );
+  const metadataJson = JSON.stringify({
+    tax: { name: taxRate.name, rateBps: taxRate.rateBps, included: taxRate.included },
+  });
 
   const now = nowIso();
   const customerId = await upsertCustomer(db, input, now);
@@ -198,12 +215,12 @@ export async function createOrderFromCart(ctx: CheckoutContext): Promise<Created
          subtotal_cents, discount_cents, shipping_cents, tax_cents, total_cents, refunded_cents,
          coupon_code, payment_method, shipping_method, shipping_rate_id, customer_note, internal_note,
          ip, user_agent, metadata_json, created_at, updated_at, paid_at, cancelled_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?, ?, NULL, ?, ?, '{}', ?, ?, NULL, NULL)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, NULL, NULL)`,
       [
         orderId, orderNumber, status, paymentStatus, customerId, input.email.toLowerCase(), input.phone || null,
-        view.currency, view.subtotalCents, view.discountCents, shipping.priceCents, totalCents,
+        view.currency, view.subtotalCents, view.discountCents, shipping.priceCents, taxCents, totalCents,
         view.couponCode, input.paymentMethod, shipping.name, shipping.id,
-        input.customerNote || null, ctx.ip, ctx.userAgent, now, now,
+        input.customerNote || null, ctx.ip, ctx.userAgent, metadataJson, now, now,
       ],
     ),
   ];
@@ -213,7 +230,7 @@ export async function createOrderFromCart(ctx: CheckoutContext): Promise<Created
       `INSERT INTO order_items (id, order_id, product_id, variant_id, name, sku, unit_price_cents, quantity,
          total_cents, options_json, image_key, created_at)
        VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, '{}',
-         (SELECT r2_key FROM product_images pi WHERE pi.product_id = ? ORDER BY pi.position LIMIT 1), ?)`,
+         (SELECT r2_key FROM product_images pi WHERE pi.product_id = ? ORDER BY pi.position, pi.created_at, pi.id LIMIT 1), ?)`,
       [
         newId("oi"), orderId, line.productId, line.variantId, line.name,
         line.unitPriceCents, line.quantity, line.totalCents, line.productId, now,

@@ -124,6 +124,35 @@ export async function getPluginSecret(
   return decryptSecret(row.value, masterKey);
 }
 
+/**
+ * Loads runtime configuration for any bundled plugin. Encrypted values are
+ * decrypted in memory only; they are never returned to the browser or logged.
+ */
+export async function loadPluginRuntimeConfig(
+  db: Database,
+  pluginId: string,
+  masterKey: string,
+): Promise<Record<string, string>> {
+  const rows = await db.all<{ key: string; value: string; encrypted: number }>(
+    "SELECT key, value, encrypted FROM plugin_settings WHERE plugin_id = ?",
+    [pluginId],
+  );
+  const config: Record<string, string> = {};
+  for (const row of rows) {
+    if (row.encrypted) {
+      try {
+        config[row.key] = await decryptSecret(row.value, masterKey);
+      } catch {
+        // A corrupt secret makes configuration invalid; do not surface ciphertext.
+        config[row.key] = "";
+      }
+    } else {
+      config[row.key] = row.value;
+    }
+  }
+  return config;
+}
+
 export async function setPluginSettings(
   db: Database,
   pluginId: string,

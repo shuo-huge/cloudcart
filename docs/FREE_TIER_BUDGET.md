@@ -38,14 +38,17 @@ All of these are **shared across the whole Cloudflare account**, not per store.
 - **Pagination everywhere**: admin and storefront lists cap page size (20 admin / 12 storefront),
   with a maximum of 100.
 - **Small HTML**: themes are string renderers, not a large SSR framework. No React server rendering.
-- **No base64 media in D1**: images live in R2; only keys and metadata are stored.
-- **No polling / cron**: no background jobs or scheduled Workers.
+- **No base64 media in D1**: images use external HTTPS URLs by default, or optional R2 uploads;
+  only keys/URLs and metadata are stored.
+- **No polling / cron**: no background jobs or scheduled Workers. Email retries are lazy: they run
+  after a new order event or when an administrator presses Process queue.
 - **No unnecessary subrequests**: storefront reads do not call external services. Payment provider
   calls happen only during checkout/webhooks.
 - **Cache-friendly assets**: content-hashed JS/CSS, immutable media caching. HTML is private because
   it contains the visitor’s cart count.
-- **Storage guard**: media uploads are refused at 80% of the R2 free storage (8 GB) unless the limit
-  is deliberately changed. No automatic plan upgrade.
+- **Storage guard**: when R2 is enabled, media uploads are refused at 80% of the R2 free storage
+  (8 GB) unless the limit is deliberately changed. External image URLs do not consume R2. No
+  automatic plan upgrade.
 - **Warning thresholds**: the admin resource panel warns above 80% of daily request/write and image
   storage estimates. The Cloudflare dashboard remains authoritative.
 
@@ -64,9 +67,10 @@ plan.
 ## 4. Capacity guidance per store
 
 - D1 500 MB per database: products/orders text data is small; a 10,000-product catalog with a few
-  thousand orders is well within this range. Media is in R2, not D1.
-- R2 10 GB: roughly 2,000 images at 5 MB, or ~10,000 at 1 MB. Uploads stop at the configured 8 GB
-  local threshold.
+  thousand orders is well within this range. Media is external or in R2, not D1. Each notification
+  email adds one outbox row with its rendered body; prune old rows if volume grows.
+- R2 10 GB (optional): roughly 2,000 images at 5 MB, or ~10,000 at 1 MB. Uploads stop at the
+  configured 8 GB local threshold. The default deployment uses no R2 bucket.
 - 100,000 requests/day: a low-traffic store with ~2,000 page views/day plus assets is far below the
   limit; assets do not count as Worker invocations.
 - 100,000 D1 writes/day: order creation is ~10–20 writes; this supports thousands of orders/day.

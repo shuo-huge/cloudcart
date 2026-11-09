@@ -51,7 +51,7 @@ CloudCart 不提供集中式 SaaS 服务，不要求用户购买 CloudCart 订�
 | 后端 | Hono + TypeScript | API 路由 |
 | 运行时 | Cloudflare Workers | 服务端逻辑 |
 | 数据库 | Cloudflare D1 | SQLite 数据库 |
-| 图片 | Cloudflare R2 | 商品图片和上传文件 |
+| 图片 | 外链 HTTPS 或可选 Cloudflare R2 | 默认使用外链；启用 R2 后才支持直接上传 |
 | 静态资源 | Workers Static Assets | 前端文件 |
 | 数据访问 | 原生 D1 Prepared Statements | 轻量数据库操作 |
 | 拖拽 | SortableJS | 页面编辑器 |
@@ -77,7 +77,7 @@ CloudCart 不提供集中式 SaaS 服务，不要求用户购买 CloudCart 订�
 
 1 个 Worker  
 1 个 D1 数据库  
-1 个 R2 Bucket  
+1 个可选 R2 Bucket（默认不创建）  
 1 套静态前端资源
 
 Worker 同时处理：
@@ -628,7 +628,7 @@ v1 不做复杂会员等级系统。
 - 不使用 N+1 查询。
 - 列表接口必须分页。
 - 订单、支付事件必须支持幂等。
-- 商品图片只存 R2 Key 和元数据。
+- 商品图片只存外链 URL 或可选 R2 Key 及元数据。
 
 ## 10. 身份认证与安全
 
@@ -710,7 +710,7 @@ v1 采用单店主管理员模式。
 3. 选择账户。
 4. 输入商城名称。
 5. 自动创建 D1。
-6. 自动创建 R2。
+6. 可选创建 R2（默认跳过）。
 7. 自动生成 APP_MASTER_KEY。
 8. 自动生成 SETUP_TOKEN。
 9. 执行数据库迁移。
@@ -747,7 +747,7 @@ v1 不包含自动邮件发送。订单通知先通过后台订单列表提供�
 必须实际完成：
 
 1. 能够在本地运行。
-2. 能够使用 Wrangler 本地 D1 和 R2 模拟生产环境。
+2. 能够使用 Wrangler 本地 D1 模拟生产环境；启用 R2 时也可本地模拟。
 3. 能够一键或一条安装命令部署到 Workers Free。
 4. 首次初始化可以创建管理员。
 5. 管理员可以登录。

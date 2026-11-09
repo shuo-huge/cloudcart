@@ -12,12 +12,14 @@ import {
   createRate,
   createRedirect,
   createZone,
+  createTaxRate,
   deleteCategory,
   deleteCoupon,
   deleteMedia,
   deleteProduct,
   deleteRate,
   deleteRedirect,
+  deleteTaxRate,
   deleteZone,
   ensureDefaultContentPages,
   getAdminProduct,
@@ -32,6 +34,7 @@ import {
   listCategories,
   listCoupons,
   listCustomers,
+  listEmailOutbox,
   listMedia,
   listOrders,
   listPageVersions,
@@ -39,6 +42,7 @@ import {
   listPlugins,
   listRedirects,
   listSubscribers,
+  listTaxRates,
   listThemes,
   listZones,
   loadStoreConfig,
@@ -54,6 +58,8 @@ import {
   setThemeSettings,
   shippingRateInputSchema,
   shippingZoneInputSchema,
+  taxRateInputSchema,
+  updateTaxRate,
   storeMedia,
   validatePageDocument,
   Storefront,
@@ -69,6 +75,11 @@ import {
   attachImageToProduct,
   recordManualRefund,
   removeProductImage,
+  reorderProductImages,
+  retryEmailOutbox,
+  isEmailNotificationsEnabled,
+  getPageVersion,
+  restorePageVersion,
   listAuditLogs,
   writeAuditLog,
 } from "@cloudcart/core";
@@ -80,6 +91,7 @@ import type { AppContext } from "../env";
 import { db, jsonError, loadStorefrontRuntime, readJson } from "../lib";
 import { STOREFRONT_CSS, STOREFRONT_JS } from "../generated/assets";
 import { getPaymentPlugin } from "../plugin-registry";
+import { notifyOrderEvent, processEmailQueue } from "../email";
 import { hasTheme, listThemeDefinitions } from "../theme-registry";
 import { pluginRegistry } from "../plugin-registry";
 
@@ -95,6 +107,24 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
     throw new HttpError(400, "invalid_input", result.error.issues[0]?.message ?? "Invalid input.", result.error.issues);
   }
   return result.data;
+}
+
+async function queueOrderEmail(
+  c: Context<AppContext>,
+  event: Parameters<typeof notifyOrderEvent>[1],
+  orderId: string,
+  extra?: { refundAmountCents?: number },
+): Promise<void> {
+  try {
+    await notifyOrderEvent(c, event, orderId, extra);
+  } catch (error) {
+    console.error(JSON.stringify({
+      level: "error",
+      scope: "order_email",
+      event,
+      message: error instanceof Error ? error.message : String(error),
+    }));
+  }
 }
 
 function paging(c: Context<AppContext>): { page: number; perPage: number } {
@@ -248,6 +278,17 @@ adminRoutes.delete("/products/:id/images/:imageId", async (c) => {
   try {
     await removeProductImage(db(c), c.req.param("id"), c.req.param("imageId"));
     await audit(c, "product.image_removed", "product", c.req.param("id"), { imageId: c.req.param("imageId") });
+    return c.json({ ok: true });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.put("/products/:id/images/order", async (c) => {
+  try {
+    const body = parse(z.object({ imageIds: z.array(z.string().min(1).max(120)).min(1).max(100) }), await readJson(c));
+    await reorderProductImages(db(c), c.req.param("id"), body.imageIds);
+    await audit(c, "product.images_reordered", "product", c.req.param("id"), { count: body.imageIds.length });
     return c.json({ ok: true });
   } catch (error) {
     return fail(c, error);
@@ -464,9 +505,15 @@ adminRoutes.post("/orders/:id/status", async (c) => {
     const body = parse(z.object({ status: z.string().max(40) }), await readJson(c));
     const status = normalizeOrderStatus(body.status);
     if (!status) throw new HttpError(400, "invalid_status", "Unknown order status.");
+    const previous = await db(c).first<{ status: string }>("SELECT status FROM orders WHERE id = ?", [c.req.param("id")]);
+    if (!previous) throw new HttpError(404, "order_not_found", "Order not found.");
     const result = await updateOrderStatus(db(c), c.req.param("id"), status);
     if (!result.ok) throw new HttpError(409, "invalid_transition", result.message);
     await audit(c, "order.status_changed", "order", c.req.param("id"), { status });
+    if (previous.status !== status) {
+      if (status === "shipped") await queueOrderEmail(c, "order.shipped", c.req.param("id"));
+      if (status === "cancelled") await queueOrderEmail(c, "order.cancelled", c.req.param("id"));
+    }
     return c.json({ ok: true });
   } catch (error) {
     return fail(c, error);
@@ -476,9 +523,17 @@ adminRoutes.post("/orders/:id/status", async (c) => {
 adminRoutes.post("/orders/:id/confirm-payment", async (c) => {
   try {
     const body = parse(z.object({ note: z.string().max(2000).optional().default("") }), await readJson(c));
+    const previous = await db(c).first<{ payment_status: string }>(
+      "SELECT payment_status FROM orders WHERE id = ?",
+      [c.req.param("id")],
+    );
+    if (!previous) throw new HttpError(404, "order_not_found", "Order not found.");
     const result = await confirmManualPayment(db(c), c.req.param("id"), c.get("adminId"), body.note || null);
     if (!result.ok) throw new HttpError(409, "cannot_confirm", result.message);
     await audit(c, "order.payment_confirmed", "order", c.req.param("id"), { note: body.note });
+    if (previous.payment_status !== "paid") {
+      await queueOrderEmail(c, "payment.confirmed", c.req.param("id"));
+    }
     return c.json({ ok: true });
   } catch (error) {
     return fail(c, error);
@@ -495,6 +550,10 @@ adminRoutes.post("/orders/:id/shipping", async (c) => {
     if (body.trackingUrl && !/^https?:\/\//.test(body.trackingUrl)) {
       throw new HttpError(400, "invalid_tracking_url", "The tracking URL must start with http:// or https://.");
     }
+    const previous = await db(c).first<{ tracking_number: string | null; status: string }>(
+      "SELECT tracking_number, status FROM orders WHERE id = ?",
+      [c.req.param("id")],
+    );
     const result = await db(c).run(
       "UPDATE orders SET shipping_carrier = ?, tracking_number = ?, tracking_url = ?, updated_at = ? WHERE id = ?",
       [body.carrier || null, body.trackingNumber || null, body.trackingUrl || null, nowIso(), c.req.param("id")],
@@ -504,6 +563,10 @@ adminRoutes.post("/orders/:id/shipping", async (c) => {
       carrier: body.carrier,
       trackingNumber: body.trackingNumber,
     });
+    if (body.trackingNumber && !previous?.tracking_number &&
+        previous?.status !== "cancelled" && previous?.status !== "refunded") {
+      await queueOrderEmail(c, "order.shipped", c.req.param("id"));
+    }
     return c.json({ ok: true });
   } catch (error) {
     return fail(c, error);
@@ -523,9 +586,13 @@ adminRoutes.post("/orders/:id/notes", async (c) => {
 
 adminRoutes.post("/orders/:id/cancel", async (c) => {
   try {
+    const previous = await db(c).first<{ status: string }>("SELECT status FROM orders WHERE id = ?", [c.req.param("id")]);
     const result = await cancelOrderAndRestock(db(c), c.req.param("id"));
     if (!result.ok) throw new HttpError(409, "cannot_cancel", result.message);
     await audit(c, "order.cancelled", "order", c.req.param("id"));
+    if (previous?.status !== "cancelled") {
+      await queueOrderEmail(c, "order.cancelled", c.req.param("id"));
+    }
     return c.json({ ok: true });
   } catch (error) {
     return fail(c, error);
@@ -573,6 +640,7 @@ adminRoutes.post("/orders/:id/refund", async (c) => {
     const result = await recordManualRefund(db(c), c.req.param("id"), amountCents, c.get("adminId"));
     if (!result.ok) throw new HttpError(409, "cannot_refund", result.message);
     await audit(c, "order.refunded", "order", c.req.param("id"), { amountCents });
+    await queueOrderEmail(c, "order.refunded", c.req.param("id"), { refundAmountCents: amountCents });
     return c.json({ ok: true });
   } catch (error) {
     return fail(c, error);
@@ -926,6 +994,74 @@ adminRoutes.get("/pages/:slug/versions", async (c) => {
   }
 });
 
+adminRoutes.get("/pages/:slug/versions/:version", async (c) => {
+  try {
+    const version = parse(z.coerce.number().int().min(1).max(1_000_000), c.req.param("version"));
+    return c.json({ ok: true, data: await getPageVersion(db(c), c.req.param("slug"), version) });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/pages/:slug/versions/:version/restore", async (c) => {
+  try {
+    const version = parse(z.coerce.number().int().min(1).max(1_000_000), c.req.param("version"));
+    const restored = await restorePageVersion(db(c), c.req.param("slug"), version);
+    await audit(c, "page.version_restored", "page", c.req.param("slug"), { version });
+    return c.json({ ok: true, data: restored });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Email outbox                                                               */
+/* -------------------------------------------------------------------------- */
+
+adminRoutes.get("/emails", async (c) => {
+  try {
+    const pagingValue = paging(c);
+    const status = c.req.query("status") ?? "all";
+    const data = await listEmailOutbox(db(c), { ...pagingValue, status });
+    return c.json({
+      ok: true,
+      data: {
+        ...data,
+        enabled: await isEmailNotificationsEnabled(db(c)),
+      },
+    });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/emails/dispatch", async (c) => {
+  try {
+    const result = await processEmailQueue(c, { limit: 50 });
+    return c.json({ ok: true, data: result });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/emails/retry", async (c) => {
+  try {
+    const body = parse(z.object({ ids: z.array(z.string().min(1).max(120)).max(100).optional() }), await readJson(c).catch(() => ({})));
+    const retried = await retryEmailOutbox(db(c), body.ids);
+    try {
+      const result = await processEmailQueue(c, { limit: 50 });
+      return c.json({ ok: true, data: { retried, ...result } });
+    } catch (error) {
+      if (error instanceof HttpError && error.code === "email_not_configured") {
+        return c.json({ ok: true, data: { retried, sent: 0, failed: 0, skipped: true } });
+      }
+      throw error;
+    }
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
 /* -------------------------------------------------------------------------- */
 /* Plugins                                                                    */
 /* -------------------------------------------------------------------------- */
@@ -994,7 +1130,59 @@ const ALLOWED_SETTINGS = new Set([
   "store.name", "store.currency", "store.locale", "store.email", "store.phone",
   "store.address", "store.logo", "store.announcement", "store.maintenance_message",
   "seo.title", "seo.description", "seo.og_image", "shipping.currency", "tax.included",
+  "tax.default_rate_bps", "tax.default_name",
 ]);
+
+/* -------------------------------------------------------------------------- */
+/* Tax rates                                                                  */
+/* -------------------------------------------------------------------------- */
+
+adminRoutes.get("/tax-rates", async (c) => {
+  try {
+    const database = db(c);
+    return c.json({
+      ok: true,
+      data: {
+        included: (await getSettings(database))["tax.included"] === "1",
+        rates: await listTaxRates(database),
+      },
+    });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/tax-rates", async (c) => {
+  try {
+    const input = parse(taxRateInputSchema, await readJson(c));
+    const id = await createTaxRate(db(c), input);
+    await audit(c, "tax_rate.created", "tax_rate", id, { country: input.country, region: input.region });
+    return c.json({ ok: true, data: { id } }, 201);
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.put("/tax-rates/:id", async (c) => {
+  try {
+    const input = parse(taxRateInputSchema, await readJson(c));
+    await updateTaxRate(db(c), c.req.param("id"), input);
+    await audit(c, "tax_rate.updated", "tax_rate", c.req.param("id"), { country: input.country, region: input.region });
+    return c.json({ ok: true });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.delete("/tax-rates/:id", async (c) => {
+  try {
+    await deleteTaxRate(db(c), c.req.param("id"));
+    await audit(c, "tax_rate.deleted", "tax_rate", c.req.param("id"));
+    return c.json({ ok: true });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
 
 adminRoutes.get("/settings", async (c) => {
   try {

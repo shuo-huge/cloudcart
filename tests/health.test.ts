@@ -9,7 +9,7 @@ describe("health endpoints", () => {
     const body = (await res.json()) as { status: string; database: string; version: string };
     expect(body.status).toBe("ok");
     expect(body.database).toBe("ok");
-    expect(body.version).toBe("0.1.0");
+    expect(body.version).toBe("0.2.0");
   });
 
   it("reports setup as required on a fresh database", async () => {

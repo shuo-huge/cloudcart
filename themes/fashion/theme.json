@@ -2,7 +2,7 @@
   "id": "fashion",
   "name": "Fashion",
   "version": "1.1.0",
-  "previewImage": "/static/themes/fashion.svg",
+  "previewImage": "/static/themes/theme-previews-atlas.webp",
   "description": "Editorial fashion storefront with oversized typography, full-bleed campaign imagery, refined product grids and a mobile-first shopping flow.",
   "supportedPages": [
     "home",

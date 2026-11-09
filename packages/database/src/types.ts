@@ -367,6 +367,39 @@ export interface MediaRow {
   created_at: string;
 }
 
+export interface TaxRateRow {
+  id: string;
+  name: string;
+  country: string;
+  region: string;
+  rate_bps: number;
+  active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailOutboxRow {
+  id: string;
+  event: string;
+  order_id: string | null;
+  recipient: string;
+  recipient_role: "customer" | "store";
+  subject: string;
+  html_body: string;
+  text_body: string;
+  status: "pending" | "sending" | "sent" | "failed";
+  attempts: number;
+  max_attempts: number;
+  next_attempt_at: string;
+  locked_at: string | null;
+  provider: string | null;
+  provider_message_id: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+  sent_at: string | null;
+}
+
 export interface AuditLogRow {
   id: string;
   admin_id: string | null;

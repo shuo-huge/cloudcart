@@ -15,6 +15,8 @@ export const SETTING_KEYS = {
   seoOgImage: "seo.og_image",
   shippingCurrency: "shipping.currency",
   taxIncluded: "tax.included",
+  taxDefaultRateBps: "tax.default_rate_bps",
+  taxDefaultName: "tax.default_name",
   maintenanceMessage: "store.maintenance_message",
 } as const;
 

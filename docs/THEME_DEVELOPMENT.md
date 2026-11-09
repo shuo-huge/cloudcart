@@ -7,10 +7,17 @@ tokens; it cannot upload or execute theme JavaScript at runtime.
 
 ```
 themes/example/
-  theme.json        manifest + design token defaults + preview image path
+  theme.json        legacy metadata copy (not loaded at runtime)
   package.json
-  src/index.ts      ThemeDefinition
+  src/index.ts      runtime ThemeDefinition, including manifest.previewImage
 ```
+
+`themes/*/src/index.ts` is the authoritative manifest. `theme.json` is kept for documentation and
+tooling and is not imported by the Worker. Update both when changing preview metadata.
+
+Preview images are cropped from one 4×2 WebP atlas at
+`apps/storefront/public/themes/theme-previews-atlas.webp`; `apps/admin/src/admin.css` uses
+`background-position` per theme id. The admin opens a full-size modal with the same atlas tile.
 
 ## 2. ThemeDefinition
 
@@ -121,5 +128,5 @@ Theme rows are upserted from bundled definitions when the admin opens the Themes
 7. **Sports** — black/safety-yellow, condensed uppercase, overlay cards, thick rules, statement footer.
 8. **Single Product** — minimal monochrome, type-only hero, square imagery, narrow measure.
 
-The automated test suite activates four of them and verifies distinct markup plus unchanged catalog
-data after switching.
+The Vitest suite activates several themes and verifies distinct markup plus unchanged catalog data
+after switching. Playwright covers the theme gallery preview modal and the responsive admin layout.

@@ -2,6 +2,7 @@ import { PluginRegistry } from "@cloudcart/core";
 import type { PaymentPlugin } from "@cloudcart/plugin-sdk";
 import { manifest as manualPaymentManifest, manualPaymentPlugin } from "@cloudcart/plugin-manual-payment";
 import { manifest as adminI18nManifest } from "@cloudcart/plugin-admin-i18n";
+import { manifest as emailNotificationsManifest } from "@cloudcart/plugin-email-notifications";
 import stripePaymentPlugin from "@cloudcart/plugin-stripe";
 import paypalPaymentPlugin from "@cloudcart/plugin-paypal";
 
@@ -14,6 +15,7 @@ export const pluginRegistry = new PluginRegistry([
   stripePaymentPlugin.manifest,
   paypalPaymentPlugin.manifest,
   adminI18nManifest,
+  emailNotificationsManifest,
 ]);
 
 const paymentPlugins = new Map<string, PaymentPlugin>([

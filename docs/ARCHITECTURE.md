@@ -2,14 +2,15 @@
 
 ## 1. Runtime topology
 
-One store = one Worker + one D1 database + one R2 bucket + one static-asset bundle.
+One store = one Worker + one D1 database + one optional R2 bucket + one static-asset bundle.
+External HTTPS image URLs are the default; R2 is only needed for direct uploads.
 
 ```
 Browser ──► Cloudflare edge
-             ├─ Workers Static Assets  /static/*, /admin/static/*
+             ├─ Workers Static Assets  /static/*, /static/admin-ui/*
              └─ Worker (Hono)          /, /api/*, /admin, /admin/*, /media/*, /webhooks/*
                  ├─ D1  (SQLite)       products, orders, pages, settings, sessions…
-                 └─ R2                  product images and uploaded media
+                 └─ R2 (optional)      uploaded media; external HTTPS URLs work without it
 ```
 
 - Static assets are served by the edge before the Worker executes when a file matches.
@@ -28,13 +29,13 @@ Browser ──► Cloudflare edge
 | `apps/worker` | HTTP surface (Hono), SSR wiring, auth middleware, webhooks, static/media serving |
 | `apps/admin` | Preact SPA: all admin screens and the visual page editor |
 | `apps/storefront` | Small client bundle: server-cart interactions, newsletter forms |
-| `packages/core` | Business rules: auth, products, categories, media, coupons, shipping, cart, orders, payment events, pages, themes, SEO, storefront data assembly |
+| `packages/core` | Business rules: auth, products, categories, media, coupons, shipping, tax, cart, orders, payment events, email outbox, pages, themes, SEO, storefront data assembly |
 | `packages/database` | D1 prepared-statement wrapper, row types, resource guard |
 | `packages/security` | PBKDF2, HMAC sessions, AES-GCM/HKDF secret encryption, HTML sanitiser, security headers |
 | `packages/shared` | Money (integer minor units), slugs, ids, countries, shared types, escaping |
 | `packages/plugin-sdk` | Plugin and payment interfaces |
 | `packages/theme-sdk` | Theme interface, HTML helpers, `createTheme` kit |
-| `plugins/*` | Build-time bundled plugins (manual, Stripe, PayPal) |
+| `plugins/*` | Build-time bundled plugins (manual, Stripe, PayPal, admin i18n, email notifications) |
 | `themes/*` | Eight bundled themes |
 
 Core depends on `@cloudcart/plugin-sdk`'s **interfaces**, never on Stripe, PayPal or a concrete theme.
@@ -53,7 +54,18 @@ The Worker composes concrete plugins/themes at its edge (`plugin-registry.ts`, `
 - The cart lives in D1. A random 32-byte token in an HttpOnly cookie maps to `carts.token` (stored
   as a SHA-256 hash). Browser storage is never trusted for prices.
 - `loadCart` joins products/variants/images in one query and recomputes prices, availability,
-  coupon discount and shipping estimate.
+  coupon discount and shipping estimate. Tax stays pending on the cart page until a destination is
+  known; checkout and order creation resolve the country/region rate.
+
+### Tax
+- `tax_rates(country, region)` holds active rate rules; `tax.default_rate_bps` and
+  `tax.default_name` are the fallback. The most specific match wins: country+region, then
+  country-wide, then the default.
+- The taxable base is `max(0, subtotal − discount + shipping)`.
+- Exclusive tax is added to the total; inclusive tax is extracted from the base with
+  `gross × rate / (10000 + rate)`, so the customer-facing total does not change.
+- `orders.tax_cents` stores the amount and `orders.metadata_json` stores the rate snapshot used.
+  Stripe/PayPal receive `orders.total_cents`, so amount verification covers tax automatically.
 - Cart pages are rendered server-side from the cookie, so quantity/removal work without a
   client-side cart model.
 
@@ -84,6 +96,15 @@ recorded and never mark an order paid. Cancelled/refunded orders stay closed.
 
 PayPal’s return URL captures server-side, then feeds the **same** event pipeline with a capture event.
 
+### Email notifications
+- The bundled `email-notifications` plugin is disabled by default. It supports Resend (HTTP API) and
+  Cloudflare Email Workers (optional `EMAIL` `send_email` binding).
+- Order events enqueue rows in `email_outbox`. Delivery is attempted after the HTTP response with
+  `waitUntil`; provider latency or failure never blocks checkout.
+- Failed rows use exponential backoff (1, 5, 15, 60, 360 minutes). There is no cron trigger: due rows
+  are retried by the next order event or by the admin “Process queue” / “Retry failed” actions.
+- The admin log never returns stored HTML/text bodies.
+
 ## 4. Order state machine
 
 ```
@@ -101,7 +122,8 @@ the customer’s order page.
 
 ## 5. Data model (D1)
 
-Migrations: `migrations/0001_init.sql`, `0002_cart_fields.sql`.
+Migrations: `0001_init.sql`, `0002_cart_fields.sql`, `0003_order_fulfilment.sql`,
+`0004_tax_and_email.sql`.
 
 Tables: `admins`, `admin_sessions`, `installation_state`, `store_settings`, `products`,
 `product_variants`, `product_images`, `categories`, `product_categories`, `product_tags`,
@@ -109,7 +131,8 @@ Tables: `admins`, `admin_sessions`, `installation_state`, `store_settings`, `pro
 `order_items`, `order_addresses`, `payment_transactions`, `payment_events`, `shipping_zones`,
 `shipping_rates`, `coupons`, `coupon_products`, `coupon_categories`, `coupon_redemptions`,
 `plugins`, `plugin_settings`, `themes`, `theme_settings`, `pages`, `page_versions`, `media`,
-`audit_logs`, `redirects`, `newsletter_subscribers`, `login_attempts`, `resource_usage`.
+`tax_rates`, `email_outbox`, `audit_logs`, `redirects`, `newsletter_subscribers`, `login_attempts`,
+`resource_usage`.
 
 Conventions:
 - Money is `INTEGER` minor units; currency is ISO-4217.
@@ -130,13 +153,18 @@ Conventions:
   emitted as an inline `style` on a wrapper only after allow-list validation in `frameSection`.
 - Custom HTML is sanitised with a strict allow-list sanitiser (no scripts, iframes, event handlers
   or `javascript:` URLs).
+- Restoring a version copies its validated snapshot into `pages.draft_json` only. It never rewrites
+  `page_versions` or `pages.published_version`; publishing afterwards appends a new version.
 
 ## 7. Caching and performance
 
 - HTML is `private, no-store`/`must-revalidate` because the header contains the visitor’s cart count.
   Data-level caching is deliberately avoided until it can be invalidated correctly.
 - Static JS/CSS use content hashes and immutable caching.
-- Media from R2 is immutable with a one-year cache and `nosniff`/sandbox headers.
+- Media uploaded to R2 is immutable with a one-year cache and `nosniff`/sandbox headers; external
+  HTTPS image URLs are used when R2 is not configured.
+- Product image order is `product_images.position` (dense 0..n-1). The first image is the cover.
+  Reordering validates the complete ID set and writes all positions in one atomic batch.
 - Each request stays within the 50-subrequest budget: no per-item fetches, no external APIs on
   storefront reads, batch queries for counts + lists.
 

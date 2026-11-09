@@ -22,6 +22,16 @@ const STATUSES = [
   "shipped", "completed", "cancelled", "refunded", "partially_refunded",
 ];
 
+function taxLabel(metadataJson: string): string {
+  try {
+    const parsed = JSON.parse(metadataJson) as { tax?: { name?: string; included?: boolean } };
+    const name = parsed.tax?.name || "Tax";
+    return parsed.tax?.included ? `${name} (included)` : name;
+  } catch {
+    return "Tax";
+  }
+}
+
 export function OrdersPage() {
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
@@ -182,6 +192,7 @@ export function OrderDetailPage({ id }: { id: string }) {
               <div><dt>Subtotal</dt><dd><Money cents={order.subtotal_cents} currency={order.currency} /></dd></div>
               {order.discount_cents > 0 && <div><dt>Discount {order.coupon_code ? `(${order.coupon_code})` : ""}</dt><dd>−<Money cents={order.discount_cents} currency={order.currency} /></dd></div>}
               <div><dt>Shipping</dt><dd><Money cents={order.shipping_cents} currency={order.currency} /></dd></div>
+              {order.tax_cents > 0 && <div><dt>{taxLabel(order.metadata_json)}</dt><dd><Money cents={order.tax_cents} currency={order.currency} /></dd></div>}
               {order.refunded_cents > 0 && <div><dt>Refunded</dt><dd>−<Money cents={order.refunded_cents} currency={order.currency} /></dd></div>}
               <div class="totals-grand"><dt>Total</dt><dd><Money cents={order.total_cents} currency={order.currency} /></dd></div>
             </dl>
