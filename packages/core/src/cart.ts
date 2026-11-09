@@ -4,6 +4,7 @@ import { HttpError, newId, nowIso, randomToken } from "@cloudcart/shared";
 import { hashToken } from "@cloudcart/security";
 import { evaluateCoupon } from "./coupons";
 import { getShippingOptions } from "./shipping";
+import { orderTotalWithTax, resolveTaxRate, taxAmountCents, taxableBaseCents } from "./tax";
 
 export const CART_COOKIE = "cc_cart";
 export const MAX_LINE_QUANTITY = 9999;
@@ -33,6 +34,11 @@ export interface CartView {
   subtotalCents: number;
   discountCents: number;
   shippingCents: number;
+  taxCents: number;
+  taxName: string | null;
+  taxRateBps: number;
+  taxIncluded: boolean;
+  taxPending: boolean;
   totalCents: number;
   couponCode: string | null;
   couponError: string | null;
@@ -102,14 +108,14 @@ export async function getOrCreateCart(
 export async function loadCart(
   db: Database,
   cart: CartRow,
-  options: { country?: string; shippingRateId?: string | null; includeShipping?: boolean } = {},
+  options: { country?: string; region?: string; shippingRateId?: string | null; includeShipping?: boolean } = {},
 ): Promise<CartView> {
   const rows = await db.all<CartLineRow>(
     `SELECT ci.id AS item_id, ci.quantity,
             p.id AS product_id, p.slug, p.name, p.price_cents, p.stock, p.manage_stock, p.status, p.currency,
             v.id AS variant_id, v.title AS variant_title, v.price_cents AS variant_price,
             v.stock AS variant_stock, v.active AS variant_active,
-            (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_key
+            (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position, pi.created_at, pi.id LIMIT 1) AS image_key
      FROM cart_items ci
      JOIN products p ON p.id = ci.product_id
      LEFT JOIN product_variants v ON v.id = ci.variant_id
@@ -177,7 +183,23 @@ export async function loadCart(
     }
   }
 
-  const totalCents = Math.max(0, subtotalCents - discountCents + shippingCents);
+  const taxRate = await resolveTaxRate(db, options.country ?? "", options.region);
+  const hasAddress = Boolean(options.country) && options.includeShipping !== false;
+  const taxCents = hasAddress
+    ? taxAmountCents(
+      taxableBaseCents(subtotalCents, discountCents, shippingCents),
+      taxRate.rateBps,
+      taxRate.included,
+    )
+    : 0;
+  const taxPending = !taxRate.included && !hasAddress;
+  const totalCents = orderTotalWithTax(
+    subtotalCents,
+    discountCents,
+    shippingCents,
+    taxCents,
+    taxRate.included,
+  );
 
   return {
     cartId: cart.id,
@@ -187,6 +209,11 @@ export async function loadCart(
     subtotalCents,
     discountCents,
     shippingCents,
+    taxCents,
+    taxName: taxRate.rateBps > 0 ? taxRate.name : null,
+    taxRateBps: taxRate.rateBps,
+    taxIncluded: taxRate.included,
+    taxPending,
     totalCents,
     couponCode: cart.coupon_code,
     couponError,

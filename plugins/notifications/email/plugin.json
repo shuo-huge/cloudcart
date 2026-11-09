@@ -1,0 +1,11 @@
+{
+  "id": "email-notifications",
+  "name": "Email Notifications",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "type": "notification",
+  "description": "Order emails through Resend or Cloudflare Email Workers with a D1 outbox, retries and an admin log.",
+  "capabilities": ["email.order-notifications", "email.resend", "email.cloudflare"],
+  "permissions": ["orders:read", "settings:read"],
+  "dependencies": []
+}

@@ -165,6 +165,62 @@ export async function listPageVersions(db: Database, slug: string) {
   );
 }
 
+export interface PageVersionSnapshot {
+  version: number;
+  publishedAt: string;
+  publishedBy: string | null;
+  document: PageDocument;
+}
+
+export async function getPageVersion(
+  db: Database,
+  slug: string,
+  version: number,
+): Promise<PageVersionSnapshot> {
+  const page = await getPage(db, slug);
+  if (!page) throw new HttpError(404, "page_not_found", "Page not found.");
+  const row = await db.first<PageVersionRow>(
+    "SELECT * FROM page_versions WHERE page_id = ? AND version = ?",
+    [page.id, version],
+  );
+  if (!row) throw new HttpError(404, "page_version_not_found", "Page version not found.");
+  let document: PageDocument;
+  try {
+    document = validatePageDocument(JSON.parse(row.data_json));
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(400, "invalid_version_snapshot", "This page version snapshot is invalid.");
+  }
+  if (document.page !== page.slug) {
+    throw new HttpError(400, "version_page_mismatch", "This version does not belong to this page.");
+  }
+  return {
+    version: row.version,
+    publishedAt: row.published_at,
+    publishedBy: row.published_by,
+    document,
+  };
+}
+
+/**
+ * Restores an immutable snapshot into the draft only. The published page and
+ * its version history are untouched until the administrator publishes again.
+ */
+export async function restorePageVersion(
+  db: Database,
+  slug: string,
+  version: number,
+): Promise<PageVersionSnapshot> {
+  const snapshot = await getPageVersion(db, slug, version);
+  const page = await getPage(db, slug);
+  if (!page) throw new HttpError(404, "page_not_found", "Page not found.");
+  await db.run(
+    "UPDATE pages SET draft_json = ?, updated_at = ? WHERE id = ?",
+    [JSON.stringify(snapshot.document), nowIso(), page.id],
+  );
+  return snapshot;
+}
+
 export async function createContentPage(db: Database, slug: string, title: string): Promise<string> {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug === "home" || slug.length > 80) {
     throw new HttpError(400, "invalid_slug", "Use a lowercase URL slug with letters, numbers and hyphens.");

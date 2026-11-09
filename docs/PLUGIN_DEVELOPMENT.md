@@ -69,7 +69,8 @@ Use the admin endpoint `PUT /api/admin/plugins/:id/settings`:
   stored with `encrypted = 1`.
 - `GET` returns `••••••••` for encrypted keys; the full value is never returned to the browser.
 - Empty or masked values keep the existing secret.
-- Read decrypted values only in the Worker via `loadPaymentRuntimeConfig` / `getPluginSecret`.
+- Read decrypted values only in the Worker via `loadPluginRuntimeConfig` (payment plugins can keep
+  using the `loadPaymentRuntimeConfig` alias) / `getPluginSecret`.
 
 ## 5. Payment plugin interface
 
@@ -116,8 +117,25 @@ To add another admin plugin, bundle it, register its manifest in
 `apps/worker/src/plugin-registry.ts`, expose the read-only data it needs, and consume that data in
 `apps/admin`. The plugin must not inject arbitrary JavaScript at runtime.
 
-## 8. Non-payment plugin types
+## 8. Notification plugin: email
 
-Shipping, marketing, SEO, analytics, product and customer plugins use the same manifest/registry
-model. Their hooks are intentionally narrow in v1; a plugin can read core data through the service
-façades and must declare the permissions it uses.
+`plugins/notifications/email` is the bundled notification plugin (`type: "notification"`,
+id `email-notifications`, disabled by default).
+
+- Settings: `backend` (`resend` or `cloudflare`), `from`, `fromName`, `replyTo`, `notifyAdmin`,
+  and the encrypted secret `resendApiKey`.
+- The Resend backend calls `POST https://api.resend.com/emails`; the Cloudflare backend uses the
+  optional `EMAIL` `send_email` binding. The binding is intentionally absent from the default
+  `wrangler.jsonc`; add it only after enabling Email Routing for your domain.
+- Core owns templates and the `email_outbox` table. The plugin only exposes an `EmailTransport`
+  (`packages/plugin-sdk/src/email.ts`).
+- Admin UI: `/admin/emails` shows configuration, an outbox summary, Process queue and Retry failed.
+- Delivery is attempted after the response using `waitUntil`; failures are recorded and retried with
+  exponential backoff. There is no cron trigger.
+- Tests mock the provider (`globalThis.fetch` for Resend or a fake binding for Cloudflare).
+
+## 9. Non-payment plugin types
+
+Shipping, marketing, SEO, analytics, product, customer and notification plugins use the same
+manifest/registry model. Their hooks are intentionally narrow in v1; a plugin can read core data
+through the service façades and must declare the permissions it uses.

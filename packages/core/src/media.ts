@@ -134,7 +134,64 @@ export async function attachImageToProduct(
 }
 
 export async function removeProductImage(db: Database, productId: string, imageId: string): Promise<void> {
-  await db.run("DELETE FROM product_images WHERE id = ? AND product_id = ?", [imageId, productId]);
+  const existing = await db.first<{ id: string }>(
+    "SELECT id FROM product_images WHERE id = ? AND product_id = ?",
+    [imageId, productId],
+  );
+  if (!existing) throw new HttpError(404, "image_not_found", "Product image not found.");
+  const remaining = await db.all<{ id: string }>(
+    "SELECT id FROM product_images WHERE product_id = ? AND id <> ? ORDER BY position, created_at, id",
+    [productId, imageId],
+  );
+  const now = nowIso();
+  const statements = [
+    db.prepare("DELETE FROM product_images WHERE id = ? AND product_id = ?", [imageId, productId]),
+    ...remaining.map((row, index) => db.prepare(
+      "UPDATE product_images SET position = ? WHERE id = ? AND product_id = ?",
+      [index, row.id, productId],
+    )),
+    db.prepare("UPDATE products SET updated_at = ? WHERE id = ?", [now, productId]),
+  ];
+  await db.batch(statements);
+}
+
+/**
+ * Reorders a product's images. The submitted list must contain exactly the
+ * current image IDs, so a concurrent add/remove cannot silently drop images.
+ */
+export async function reorderProductImages(
+  db: Database,
+  productId: string,
+  imageIds: string[],
+): Promise<void> {
+  const product = await db.first<{ id: string }>("SELECT id FROM products WHERE id = ?", [productId]);
+  if (!product) throw new HttpError(404, "product_not_found", "Product not found.");
+  if (!Array.isArray(imageIds) || imageIds.length === 0 || imageIds.length > 100) {
+    throw new HttpError(400, "invalid_image_order", "Provide between 1 and 100 image IDs.");
+  }
+  const unique = new Set(imageIds);
+  if (unique.size !== imageIds.length) {
+    throw new HttpError(400, "invalid_image_order", "Image IDs must be unique.");
+  }
+  const rows = await db.all<{ id: string }>(
+    "SELECT id FROM product_images WHERE product_id = ? ORDER BY position, created_at, id",
+    [productId],
+  );
+  if (rows.length !== imageIds.length) {
+    throw new HttpError(409, "image_list_stale", "The product images changed. Reload and try again.");
+  }
+  const current = new Set(rows.map((row) => row.id));
+  if (imageIds.some((id) => !current.has(id))) {
+    throw new HttpError(400, "invalid_image_order", "Every image must belong to this product.");
+  }
+  const now = nowIso();
+  await db.batch([
+    ...imageIds.map((id, index) => db.prepare(
+      "UPDATE product_images SET position = ? WHERE id = ? AND product_id = ?",
+      [index, id, productId],
+    )),
+    db.prepare("UPDATE products SET updated_at = ? WHERE id = ?", [now, productId]),
+  ]);
 }
 
 export async function listMedia(db: Database, page: number, perPage: number): Promise<{ items: MediaRow[]; total: number }> {

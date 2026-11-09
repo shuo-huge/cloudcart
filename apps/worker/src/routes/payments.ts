@@ -13,6 +13,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { AppContext } from "../env";
 import { db, jsonError } from "../lib";
+import { notifyOrderEvent } from "../email";
 import { getPaymentPlugin } from "../plugin-registry";
 
 export const webhookRoutes = new Hono<AppContext>();
@@ -49,6 +50,21 @@ webhookRoutes.post("/:plugin", async (c) => {
     const event = await plugin.verifyWebhook(c.req.raw, config);
     assertEventShape(event);
     const outcome = await processPaymentEvent(db(c), pluginId, event);
+    if (outcome.result === "processed" && outcome.orderId) {
+      try {
+        if (event.type === "payment.succeeded") {
+          await notifyOrderEvent(c, "payment.confirmed", outcome.orderId);
+        } else if (event.type === "refund") {
+          await notifyOrderEvent(c, "order.refunded", outcome.orderId, { refundAmountCents: event.amountCents });
+        }
+      } catch (emailError) {
+        console.error(JSON.stringify({
+          level: "error",
+          scope: "order_email",
+          message: emailError instanceof Error ? emailError.message : String(emailError),
+        }));
+      }
+    }
     return c.json({ received: true, result: outcome.result });
   } catch (error) {
     console.error(JSON.stringify({
@@ -97,7 +113,7 @@ paymentReturnRoutes.get("/paypal/return", async (c) => {
     return c.redirect(`/orders/${access}?payment=failed`, 302);
   }
   const now = new Date().toISOString();
-  await processPaymentEvent(database, "paypal", {
+  const outcome = await processPaymentEvent(database, "paypal", {
     eventId: `capture-${capture.providerTransactionId ?? paypalOrderId}`,
     type: "payment.succeeded",
     orderId,
@@ -108,6 +124,18 @@ paymentReturnRoutes.get("/paypal/return", async (c) => {
     rawType: "paypal.capture.completed",
     statusDetail: now,
   });
+
+  if (outcome.result === "processed") {
+    try {
+      await notifyOrderEvent(c, "payment.confirmed", orderId);
+    } catch (emailError) {
+      console.error(JSON.stringify({
+        level: "error",
+        scope: "order_email",
+        message: emailError instanceof Error ? emailError.message : String(emailError),
+      }));
+    }
+  }
 
   const refreshed = await database.first<{ payment_status: string }>(
     "SELECT payment_status FROM orders WHERE id = ?",

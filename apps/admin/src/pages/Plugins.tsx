@@ -101,6 +101,9 @@ export function PluginsPage() {
                   {plugin.type === "payment" && (
                     <a class="link-button" {...linkProps("/payments")}>Configure</a>
                   )}
+                  {plugin.type === "notification" && (
+                    <a class="link-button" {...linkProps("/emails")}>Configure</a>
+                  )}
                   {plugin.id === "admin-i18n" && (
                     <button type="button" class="link-button" onClick={() => void openLanguageSettings()}>
                       Language settings

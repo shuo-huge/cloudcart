@@ -111,6 +111,16 @@ npx wrangler d1 execute cloudcart --remote --file backup-YYYYMMDD.sql
 
 R2 is optional. If you enable it later, back up and restore its objects separately.
 
+Email notifications are also optional and disabled by default. The Resend backend only needs an
+API key entered in **Admin → Emails**. The Cloudflare Email Workers backend additionally requires
+Email Routing on your domain and an `EMAIL` `send_email` binding in `wrangler.jsonc`:
+
+```jsonc
+"send_email": [{ "name": "EMAIL" }]
+```
+
+Without either configuration, orders still work and the outbox remains empty.
+
 ## 9. Multiple independent stores
 
 Each deployment should use distinct resource names, e.g.:
@@ -131,4 +141,6 @@ default deployment model.
 | Deployment fails on missing `database_id` | Run the script (it writes the id) or set it manually |
 | Webhook signature failures | Verify the exact webhook secret and endpoint URL; Stripe requires the raw body |
 | Image upload unavailable | The default deployment uses external HTTPS image URLs. Enable R2 and add the `MEDIA` binding to allow direct uploads |
+| Email queue stays empty | Enable the Email Notifications plugin and save a From address plus a Resend key or the `EMAIL` binding |
+| Email shows “binding is not configured” | Add the `send_email` binding and redeploy, or switch the backend to Resend |
 | Old asset hashes after deploy | Assets are rebuilt by the script; ensure `dist/` is regenerated |

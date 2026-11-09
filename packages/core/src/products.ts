@@ -314,7 +314,7 @@ export async function getAdminProduct(db: Database, id: string): Promise<AdminPr
   const product = await db.first<ProductRow>("SELECT * FROM products WHERE id = ?", [id]);
   if (!product) return null;
   const [images, variants, categories, tags] = await db.batch([
-    db.prepare("SELECT * FROM product_images WHERE product_id = ? ORDER BY position, created_at", [id]),
+    db.prepare("SELECT * FROM product_images WHERE product_id = ? ORDER BY position, created_at, id", [id]),
     db.prepare("SELECT * FROM product_variants WHERE product_id = ? ORDER BY position", [id]),
     db.prepare("SELECT category_id FROM product_categories WHERE product_id = ?", [id]),
     db.prepare("SELECT tag FROM product_tags WHERE product_id = ? ORDER BY tag", [id]),
@@ -358,8 +358,8 @@ export async function listAdminProducts(
   const countStmt = db.prepare(`SELECT COUNT(*) AS count FROM products p ${where}`, params);
   const listStmt = db.prepare(
     `SELECT p.*,
-       (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_key,
-       (SELECT alt FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_alt,
+       (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position, pi.created_at, pi.id LIMIT 1) AS image_key,
+       (SELECT alt FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position, pi.created_at, pi.id LIMIT 1) AS image_alt,
        (SELECT GROUP_CONCAT(c.name, ', ') FROM product_categories pc JOIN categories c ON c.id = pc.category_id WHERE pc.product_id = p.id) AS category_names
      FROM products p ${where}
      ORDER BY p.created_at DESC
@@ -410,8 +410,8 @@ export async function listPublicProducts(
     db.prepare(
       `SELECT p.id, p.slug, p.name, p.description, p.price_cents, p.compare_at_price_cents, p.currency,
               p.stock, p.manage_stock, p.featured,
-              (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_key,
-              (SELECT alt FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_alt
+              (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position, pi.created_at, pi.id LIMIT 1) AS image_key,
+              (SELECT alt FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position, pi.created_at, pi.id LIMIT 1) AS image_alt
        FROM products p ${where}
        ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`,
@@ -451,15 +451,15 @@ export async function getPublicProductBySlug(db: Database, slug: string): Promis
   const product = await db.first<PublicProduct>(
     `SELECT p.id, p.slug, p.name, p.description, p.price_cents, p.compare_at_price_cents, p.currency,
             p.stock, p.manage_stock, p.featured, p.seo_title, p.seo_description,
-            (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_key,
-            (SELECT alt FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_alt
+            (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position, pi.created_at, pi.id LIMIT 1) AS image_key,
+            (SELECT alt FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position, pi.created_at, pi.id LIMIT 1) AS image_alt
      FROM products p WHERE p.slug = ? AND p.status = 'active' LIMIT 1`,
     [slug],
   );
   if (!product) return null;
 
   const [images, variants, categories, tags] = await db.batch([
-    db.prepare("SELECT * FROM product_images WHERE product_id = ? ORDER BY position, created_at", [product.id]),
+    db.prepare("SELECT * FROM product_images WHERE product_id = ? ORDER BY position, created_at, id", [product.id]),
     db.prepare("SELECT * FROM product_variants WHERE product_id = ? AND active = 1 ORDER BY position", [product.id]),
     db.prepare(
       `SELECT c.id, c.slug, c.name FROM product_categories pc JOIN categories c ON c.id = pc.category_id
@@ -477,8 +477,8 @@ export async function getPublicProductBySlug(db: Database, slug: string): Promis
     const rows = await db.all<PublicProduct>(
       `SELECT DISTINCT p.id, p.slug, p.name, p.description, p.price_cents, p.compare_at_price_cents, p.currency,
               p.stock, p.manage_stock, p.featured,
-              (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_key,
-              (SELECT alt FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position LIMIT 1) AS image_alt
+              (SELECT r2_key FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position, pi.created_at, pi.id LIMIT 1) AS image_key,
+              (SELECT alt FROM product_images pi WHERE pi.product_id = p.id ORDER BY pi.position, pi.created_at, pi.id LIMIT 1) AS image_alt
        FROM products p
        JOIN product_categories pc ON pc.product_id = p.id
        WHERE pc.category_id IN (${categoryIds.map(() => "?").join(",")})

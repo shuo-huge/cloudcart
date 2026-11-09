@@ -308,8 +308,12 @@ export class Storefront {
   ): Promise<{ page: StorefrontPage; newToken?: string }> {
     await this.loadCategories();
     const { cart, newToken } = await getOrCreateCart(this.deps.db, cartToken, this.deps.store.currency);
+    // The country select defaults to US in the form; use the same default for
+    // the initial shipping and tax estimate so submitting does not mismatch.
+    const country = values.country || "US";
     const view = await loadCart(this.deps.db, cart, {
-      country: values.country ?? "",
+      country,
+      region: values.state || "",
       shippingRateId: values.shippingRateId ?? null,
     });
     if (view.lines.length === 0) {
@@ -326,7 +330,7 @@ export class Storefront {
         }),
       };
     }
-    const shippingRates = await getShippingOptions(this.deps.db, values.country ?? "", view.subtotalCents);
+    const shippingRates = await getShippingOptions(this.deps.db, country, view.subtotalCents);
     const paymentMethods = await getEnabledPaymentMethods(this.deps.db);
     const data: CheckoutData = {
       cart: this.toCartData(view),
@@ -336,6 +340,7 @@ export class Storefront {
       error,
       values: {
         ...values,
+        country,
         shippingRateId: values.shippingRateId ?? shippingRates[0]?.id ?? "",
       },
     };
@@ -436,6 +441,11 @@ export class Storefront {
       couponCode: view.couponCode,
       discountCents: view.discountCents,
       shippingCents: view.shippingCents,
+      taxCents: view.taxCents,
+      taxName: view.taxName,
+      taxRateBps: view.taxRateBps,
+      taxIncluded: view.taxIncluded,
+      taxPending: view.taxPending,
       totalCents: view.totalCents,
       error: view.couponError ?? undefined,
     };

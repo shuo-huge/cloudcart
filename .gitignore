@@ -7,6 +7,10 @@ dist/
 !.env.example
 !.dev.vars.example
 coverage/
+.e2e/
+e2e/.auth/
+playwright-report/
+test-results/
 *.log
 .DS_Store
 Thumbs.db

@@ -3,6 +3,7 @@ import { CategoriesPage } from "./pages/Categories";
 import { CustomersPage, CustomerDetailPage } from "./pages/Customers";
 import { DashboardPage } from "./pages/Dashboard";
 import { DiscountsPage } from "./pages/Discounts";
+import { EmailsPage } from "./pages/Emails";
 import { MediaPage } from "./pages/Media";
 import { OrdersPage, OrderDetailPage } from "./pages/Orders";
 import { PagesPage } from "./pages/Pages";
@@ -37,6 +38,7 @@ export function Routes() {
   if (pageEditor) return <PageEditorPage slug={pageEditor.slug!} />;
   if (matchRoute(path, "/themes")) return <ThemesPage />;
   if (matchRoute(path, "/plugins")) return <PluginsPage />;
+  if (matchRoute(path, "/emails")) return <EmailsPage />;
   if (matchRoute(path, "/payments")) return <PaymentsPage />;
   if (matchRoute(path, "/shipping")) return <ShippingPage />;
   if (matchRoute(path, "/seo")) return <SeoPage />;

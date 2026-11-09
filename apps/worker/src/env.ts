@@ -1,7 +1,11 @@
+import type { EmailBinding } from "@cloudcart/plugin-sdk";
+
 export interface Env {
   DB: D1Database;
   /** Optional object storage. External image URLs work without R2. */
   MEDIA?: R2Bucket;
+  /** Optional Cloudflare Email Workers send_email binding. */
+  EMAIL?: EmailBinding;
   ASSETS: Fetcher;
   /** Worker secret. Used for session signatures and payment-secret encryption. */
   APP_MASTER_KEY: string;
@@ -25,4 +29,4 @@ export type AppContext = {
   Variables: AppVariables;
 };
 
-export const CLOUDCART_VERSION = "0.1.0";
+export const CLOUDCART_VERSION = "0.2.0";

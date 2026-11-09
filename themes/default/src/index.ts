@@ -714,6 +714,15 @@ ${data.related.length > 0 ? `<section class="cc-section"><div class="cc-containe
       <div class="cc-summary-row"><span>Subtotal</span><span>${formatMoney(data.subtotalCents, data.currency)}</span></div>
       ${data.discountCents > 0 ? `<div class="cc-summary-row"><span>Discount ${data.couponCode ? `(${escapeHtml(data.couponCode)})` : ""}</span><span>−${formatMoney(data.discountCents, data.currency)}</span></div>` : ""}
       <div class="cc-summary-row"><span>Shipping</span><span>${data.shippingCents > 0 ? formatMoney(data.shippingCents, data.currency) : "Calculated at checkout"}</span></div>
+      ${data.taxIncluded
+        ? data.taxCents > 0
+          ? `<div class="cc-summary-row"><span>${escapeHtml(data.taxName ?? "Tax")} (included)</span><span>${formatMoney(data.taxCents, data.currency)}</span></div>`
+          : `<div class="cc-summary-row"><span>Tax</span><span>Included in prices</span></div>`
+        : data.taxPending
+          ? `<div class="cc-summary-row"><span>Tax</span><span>Calculated at checkout</span></div>`
+          : data.taxCents > 0
+            ? `<div class="cc-summary-row"><span>${escapeHtml(data.taxName ?? "Tax")}</span><span>${formatMoney(data.taxCents, data.currency)}</span></div>`
+            : ""}
       <div class="cc-summary-row cc-summary-row--total"><span>Total</span><span>${formatMoney(data.totalCents, data.currency)}</span></div>
       <form class="cc-coupon" data-coupon-form>
         <input name="code" value="${escapeAttr(data.couponCode ?? "")}" placeholder="Discount code" aria-label="Discount code">
@@ -785,6 +794,15 @@ ${data.related.length > 0 ? `<section class="cc-section"><div class="cc-containe
       <div class="cc-summary-row" style="margin-top:14px"><span>Subtotal</span><span>${formatMoney(data.cart.subtotalCents, data.cart.currency)}</span></div>
       ${data.cart.discountCents > 0 ? `<div class="cc-summary-row"><span>Discount</span><span>−${formatMoney(data.cart.discountCents, data.cart.currency)}</span></div>` : ""}
       <div class="cc-summary-row"><span>Shipping</span><span>${formatMoney(data.cart.shippingCents, data.cart.currency)}</span></div>
+      ${data.cart.taxIncluded
+        ? data.cart.taxCents > 0
+          ? `<div class="cc-summary-row"><span>${escapeHtml(data.cart.taxName ?? "Tax")} (included)</span><span>${formatMoney(data.cart.taxCents, data.cart.currency)}</span></div>`
+          : `<div class="cc-summary-row"><span>Tax</span><span>Included in prices</span></div>`
+        : data.cart.taxPending
+          ? `<div class="cc-summary-row"><span>Tax</span><span>Calculated at checkout</span></div>`
+          : data.cart.taxCents > 0
+            ? `<div class="cc-summary-row"><span>${escapeHtml(data.cart.taxName ?? "Tax")}</span><span>${formatMoney(data.cart.taxCents, data.cart.currency)}</span></div>`
+            : ""}
       <div class="cc-summary-row cc-summary-row--total"><span>Total</span><span>${formatMoney(data.cart.totalCents, data.cart.currency)}</span></div>
       <p class="cc-muted" style="font-size:.78rem;margin-top:14px">Your order will be created and stock reserved only after you place it.</p>
     </aside>

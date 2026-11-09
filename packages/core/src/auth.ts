@@ -132,6 +132,9 @@ export async function setupStore(
       [SETTING_KEYS.storeLocale]: "en-US",
       [SETTING_KEYS.seoTitle]: input.storeName?.trim() || "CloudCart",
       [SETTING_KEYS.seoDescription]: "A CloudCart store.",
+      [SETTING_KEYS.taxIncluded]: "0",
+      [SETTING_KEYS.taxDefaultRateBps]: "0",
+      [SETTING_KEYS.taxDefaultName]: "Tax",
     }).map(([key, value]) => db.prepare(
       `INSERT INTO store_settings (key, value, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
@@ -337,6 +340,13 @@ export async function seedStoreDefaults(db: Database): Promise<void> {
   await setSettings(db, {
     [SETTING_KEYS.storeLocale]: "en-US",
   });
+  // Tax defaults are inserted only when absent so existing stores keep their
+  // configured rates.
+  await db.batch([
+    db.prepare("INSERT OR IGNORE INTO store_settings (key, value, updated_at) VALUES (?, '0', ?)", [SETTING_KEYS.taxIncluded, now]),
+    db.prepare("INSERT OR IGNORE INTO store_settings (key, value, updated_at) VALUES (?, '0', ?)", [SETTING_KEYS.taxDefaultRateBps, now]),
+    db.prepare("INSERT OR IGNORE INTO store_settings (key, value, updated_at) VALUES (?, 'Tax', ?)", [SETTING_KEYS.taxDefaultName, now]),
+  ]);
   const existingZone = await db.first<{ id: string }>("SELECT id FROM shipping_zones WHERE is_default = 1 LIMIT 1");
   if (!existingZone) {
     const zoneId = newId("zone");

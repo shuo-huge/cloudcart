@@ -1,5 +1,5 @@
 import type { Database } from "@cloudcart/database";
-import { decryptSecret } from "@cloudcart/security";
+import { loadPluginRuntimeConfig } from "./plugins";
 
 export const PAYMENT_SECRET_KEYS: Record<string, string[]> = {
   stripe: ["secretKey", "webhookSecret"],
@@ -47,22 +47,5 @@ export async function loadPaymentRuntimeConfig(
   pluginId: string,
   masterKey: string,
 ): Promise<Record<string, string>> {
-  const rows = await db.all<{ key: string; value: string; encrypted: number }>(
-    "SELECT key, value, encrypted FROM plugin_settings WHERE plugin_id = ?",
-    [pluginId],
-  );
-  const config: Record<string, string> = {};
-  for (const row of rows) {
-    if (row.encrypted) {
-      try {
-        config[row.key] = await decryptSecret(row.value, masterKey);
-      } catch {
-        // A corrupt secret makes configuration invalid; do not surface ciphertext.
-        config[row.key] = "";
-      }
-    } else {
-      config[row.key] = row.value;
-    }
-  }
-  return config;
+  return loadPluginRuntimeConfig(db, pluginId, masterKey);
 }

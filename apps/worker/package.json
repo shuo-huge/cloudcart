@@ -1,12 +1,13 @@
 {
   "name": "@cloudcart/worker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "dependencies": {
     "@cloudcart/core": "workspace:*",
     "@cloudcart/database": "workspace:*",
     "@cloudcart/plugin-admin-i18n": "workspace:*",
+    "@cloudcart/plugin-email-notifications": "workspace:*",
     "@cloudcart/plugin-manual-payment": "workspace:*",
     "@cloudcart/plugin-paypal": "workspace:*",
     "@cloudcart/plugin-sdk": "workspace:*",

@@ -76,8 +76,10 @@ export interface Order {
   subtotal_cents: number;
   discount_cents: number;
   shipping_cents: number;
+  tax_cents: number;
   total_cents: number;
   refunded_cents: number;
+  metadata_json: string;
   coupon_code: string | null;
   payment_method: string | null;
   shipping_method: string | null;

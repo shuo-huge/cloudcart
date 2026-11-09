@@ -32,6 +32,7 @@ export type ProductType = (typeof PRODUCT_TYPES)[number];
 
 export const PLUGIN_TYPES = [
   "payment", "shipping", "marketing", "seo", "analytics", "product", "customer", "theme", "admin",
+  "notification",
 ] as const;
 export type PluginType = (typeof PLUGIN_TYPES)[number];
 

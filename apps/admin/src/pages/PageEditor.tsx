@@ -44,6 +44,7 @@ export function PageEditorPage({ slug }: { slug: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [showVersions, setShowVersions] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [restoringVersion, setRestoringVersion] = useState<number | null>(null);
   const outlineRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,11 +79,12 @@ export function PageEditorPage({ slug }: { slug: string }) {
   }, [slug]);
 
   useEffect(() => {
-    if (!outlineRef.current || !doc) return;
+    if (loading || !outlineRef.current || !doc) return;
     const sortable = Sortable.create(outlineRef.current, {
       animation: 150,
       handle: ".drag-handle",
       ghostClass: "outline-item--ghost",
+      forceFallback: true,
       onEnd: (event) => {
         if (event.oldIndex === undefined || event.newIndex === undefined || event.oldIndex === event.newIndex) return;
         const current = doc;
@@ -95,7 +97,7 @@ export function PageEditorPage({ slug }: { slug: string }) {
     });
     return () => sortable.destroy();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc]);
+  }, [doc, loading]);
 
   function apply(next: PageDocument, pushHistory = true): void {
     if (doc && pushHistory) {
@@ -220,6 +222,34 @@ export function PageEditorPage({ slug }: { slug: string }) {
     if (!moved) return;
     sections.splice(target, 0, moved);
     apply({ ...doc, sections });
+  }
+
+  async function restoreVersion(version: number): Promise<void> {
+    if (!window.confirm(
+      `Restore version ${version} into the draft? The published page will not change until you publish.`,
+    )) return;
+    setRestoringVersion(version);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    try {
+      const restored = await adminSend<{ document: PageDocument; version: number }>(
+        `/pages/${slug}/versions/${version}/restore`,
+        "POST",
+        {},
+      );
+      setUndoStack((current) => doc ? [...current, doc].slice(-60) : current);
+      setRedoStack([]);
+      setDoc(restored.document);
+      setStatus("saved");
+      setPreviewError(null);
+      void renderPreview(restored.document);
+      toast(`Restored version ${version}. Review the draft, then publish.`);
+      setShowVersions(false);
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Restore failed.", "error");
+    } finally {
+      setRestoringVersion(null);
+    }
   }
 
   async function publish(): Promise<void> {
@@ -364,14 +394,22 @@ export function PageEditorPage({ slug }: { slug: string }) {
           {versions.length === 0 ? <p class="muted">No published versions yet.</p> : (
             <ul class="plain-list">
               {versions.map((version) => (
-                <li key={version.version} class="version-row">
+                <li key={version.version} class="version-row" data-version={version.version}>
                   <strong>Version {version.version}</strong>
                   <span class="muted small">{formatDate(version.published_at)}</span>
+                  <button
+                    type="button"
+                    class="button button--small"
+                    disabled={restoringVersion !== null}
+                    onClick={() => void restoreVersion(version.version)}
+                  >
+                    {restoringVersion === version.version ? "Restoring…" : "Restore"}
+                  </button>
                 </li>
               ))}
             </ul>
           )}
-          <p class="muted small">Published versions are immutable snapshots. Restoring an older version is not implemented in this build.</p>
+          <p class="muted small">Published versions are immutable snapshots. Restoring an older version copies it into the draft; publishing creates a new version.</p>
         </Modal>
       )}
     </div>

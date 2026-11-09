@@ -56,7 +56,7 @@
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
-Cloudflare 会把 CloudCart 部署到**你的账户**并创建 D1。R2 是可选的。**不需要手动生成、复制或填写任何密钥。** 部署脚本会自动生成 `APP_MASTER_KEY` 和 `SETUP_TOKEN`，将它们保存为 Worker Secret，并在成功部署日志中输出一个私密的一次性安装链接。
+Cloudflare 会把 CloudCart 部署到**你的账户**并创建 D1。R2 是可选的。按钮会使用仓库根目录的 `build` 和 `deploy` 脚本：先构建前台和后台，再执行 `scripts/deploy.mjs`。**不需要手动生成、复制或填写任何密钥。** 部署脚本会自动生成 `APP_MASTER_KEY` 和 `SETUP_TOKEN`，将它们保存为 Worker Secret，并在部署日志中输出一个私密的一次性安装链接。
 
 打开最近一次成功部署日志中的 **Setup link**。安装页面只需要填写管理员姓名、邮箱和密码。商店名称和货币使用默认值，安装后可以在后台「设置」中修改。初始化令牌已经包含在私密链接中，不会作为表单字段显示。
 
@@ -73,13 +73,13 @@ pnpm run deploy:cloudflare
 
 脚本会依次检查 Node、Wrangler 和 Cloudflare 登录状态，然后：
 
-1. 查找或创建 D1 数据库；
-3. 把真实 ID 写入 `wrangler.jsonc`；
-4. 构建前台和后台；
-5. 执行远程数据库迁移；
-6. 部署 Worker；
-7. 保留现有 `APP_MASTER_KEY`，并在商城尚未初始化时生成或刷新一次性安装令牌；
-8. 输出商城地址、后台地址和一次性初始化链接。
+1. 查找或创建 D1 数据库（优先复用一键部署按钮已创建的数据库）；
+2. 把真实 ID 写入 `wrangler.jsonc`；
+3. 构建前台和后台；
+4. 通过 `DB` 绑定执行远程数据库迁移；
+5. 部署 Worker；
+6. 保留现有 `APP_MASTER_KEY`，并在商城尚未初始化时生成或刷新一次性安装令牌；
+7. 输出商城地址、后台地址和一次性初始化链接。
 
 可重复执行：已有资源和密钥会复用，不会覆盖业务数据。
 
@@ -92,7 +92,7 @@ pnpm run deploy:cloudflare -- --check           # 只检查环境，不修改资
 
 ## 本地开发
 
-要求：Node.js 20+、pnpm 10+。
+要求：Node.js 20+（CI 使用 24，`.nvmrc` 固定 22）、pnpm 10+（`packageManager` 固定 12.16.1）。
 
 ```bash
 pnpm install
@@ -101,6 +101,13 @@ pnpm dev
 ```
 
 `pnpm dev` 会自动在本地生成 `.dev.vars` 随机密钥，并输出一次性安装链接。已有本地密钥会被保留，不会每次启动都更换。
+
+浏览器端到端测试使用 Playwright，并连接隔离的本地 D1 数据库：
+
+```bash
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
 
 | 地址 | 用途 |
 |---|---|
@@ -118,20 +125,18 @@ pnpm dev
 首页、分类、搜索、商品详情、购物车、结账、订单确认、内容页全部服务端渲染。内置 Meta 标签、Canonical、Open Graph、Twitter Card、商品/面包屑/网站 JSON-LD、`sitemap.xml`、`robots.txt`、301 重定向。不依赖 JavaScript 也能被抓取商品名称和描述。
 
 ### 后台
-Dashboard、商品与规格、分类、图片外链（R2 文件上传可选）、订单、客户、优惠券、配送区域与运费、主题、可视化页面编辑器、插件、支付配置、媒体库、店铺设置、SEO 重定向、审计日志、资源用量估算。
+Dashboard、商品与规格、分类、图片外链（R2 文件上传可选）、可拖拽排序的商品图片、订单、客户、优惠券、配送区域与运费、税率、主题、支持版本回滚的可视化页面编辑器、插件、邮件通知与发件箱、支付配置、媒体库、店铺设置、SEO 重定向、审计日志、资源用量估算。
 
 ### 交易核心
-每次结账都在服务端重新校验价格、库存、优惠和运费。金额使用整数最小货币单位，保存订单快照，库存使用条件更新与补偿机制，订单状态机显式约束，人工确认收款记录管理员和时间，支持手动填写物流单号。
+每次结账都在服务端重新校验价格、库存、优惠、运费和税费。金额使用整数最小货币单位，保存订单快照，库存使用条件更新与补偿机制，订单状态机显式约束，人工确认收款记录管理员和时间，支持手动填写物流单号。税费支持国家/地区税率规则、默认税率，以及含税价/不含税价；税费计入订单总额并自动同步到支付金额。
 
 ### 8 套内置主题
 Default、Fashion、Beauty、Electronics、Jewelry、Home、Sports、Single Product。每套主题的布局、字体、商品卡片结构都不同，而不是只换颜色；全部接入同一套 Theme SDK 和设计变量。
 
-| Default | Fashion | Electronics | Sports |
-|---|---|---|---|
-| ![Default](apps/storefront/public/themes/default.svg) | ![Fashion](apps/storefront/public/themes/fashion.svg) | ![Electronics](apps/storefront/public/themes/electronics.svg) | ![Sports](apps/storefront/public/themes/sports.svg) |
+主题库预览来自一张 4×2 的 WebP 图集（`apps/storefront/public/themes/theme-previews-atlas.webp`），通过 CSS 裁切显示，并支持后台全屏预览弹窗。预览图是示意素材，不是运行中店铺的截图。
 
 ### 可视化页面编辑器
-三栏布局，SortableJS 拖拽排序，新增/删除/复制/隐藏模块，模块内容与样式配置，桌面/平板/手机实时预览，自动保存草稿，撤销/重做，发布并生成不可变版本快照。页面 JSON 服务端校验，自定义 HTML 严格消毒。
+三栏布局，SortableJS 拖拽排序，新增/删除/复制/隐藏模块，模块内容与样式配置，桌面/平板/手机实时预览，自动保存草稿，撤销/重做，发布并生成不可变版本快照，可把任意已发布版本恢复为草稿。页面 JSON 服务端校验，自定义 HTML 严格消毒。
 
 ![中文后台登录](docs/images/admin-login-zh.png)
 
@@ -143,7 +148,7 @@ Default、Fashion、Beauty、Electronics、Jewelry、Home、Sports、Single Prod
 支付密钥使用由 `APP_MASTER_KEY` 派生的 AES-GCM 密钥加密，永远不会返回浏览器。
 
 ### 插件
-构建时打包、运行时启停、设置保存在 D1。未打包进当前 Worker 的插件无法启用。内置：Manual、Stripe、PayPal，以及 **Admin Language Pack**（English / 简体中文，可配置默认语言和切换器）。
+构建时打包、运行时启停、设置保存在 D1。未打包进当前 Worker 的插件无法启用。内置：Manual、Stripe、PayPal、**Admin Language Pack**（English / 简体中文），以及 **Email Notifications**（Resend 或 Cloudflare Email Workers，D1 发件箱、失败重试和后台日志；默认关闭）。
 
 ### 安全
 PBKDF2 密码、HMAC Session、CSRF 双提交、登录限流、全部预编译 SQL、HTML 白名单消毒、图片魔数校验、开放重定向防护、Webhook 验签、审计日志。
@@ -170,9 +175,9 @@ packages/database D1 封装、行类型、资源保护
 packages/security Web Crypto、会话、密钥加密、消毒
 packages/shared   金额、ID、Slug、类型
 packages/plugin-sdk, theme-sdk, ui
-plugins/          admin/i18n、payments/{manual,stripe,paypal}
+plugins/          admin/i18n、payments/{manual,stripe,paypal}、notifications/email
 themes/           8 套内置主题
-migrations/       3 个 D1 迁移
+migrations/       4 个 D1 迁移
 scripts/          部署 CLI 与资源准备
 tests/            workerd 集成测试
 docs/             架构、插件、主题、支付、部署、安全、测试文档
@@ -184,16 +189,17 @@ docs/             架构、插件、主题、支付、部署、安全、测试�
 
 ## 项目状态
 
-**v0.1.0 — 功能可用，但尚未宣称 1.0。** 已实现和未实现的事项都明确列出。
+**v0.2.0 — 功能可用，但尚未宣称 1.0。** 已实现和未实现的事项都明确列出。
 
-已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、服务端购物车、访客结账、库存预占、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、28 个 workerd 测试。
+已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、49 个 workerd 测试、7 个 Playwright 浏览器测试。
 
 未验证或尚未完成：
-- 仓库内**没有对真实 Stripe/PayPal Sandbox 发起过交易**；测试中支付接口使用确定性 mock。
-- 构建本版本时**没有真正执行过 Cloudflare 部署**；部署 CLI 的环境检查已通过。
+- 仓库内**没有对真实 Stripe/PayPal Sandbox 发起过交易**；测试中支付接口使用确定性 mock，Sandbox 账号待补充。
+- 维护者账户中的 Workers Builds 部署曾成功，但本次变更尚未重新部署。
 - PayPal 使用托管审批跳转，不是嵌入式 Smart Buttons。
-- 暂无邮件发送、税费计算、页面版本回滚、图片排序。
-- 主题预览是原创 SVG 素材，不是真实店铺截图。
+- 尚未接入真实邮件服务商发送；Resend 与 Cloudflare 通道使用 mock 或单元测试验证。
+- 暂无免税客户证明、按商品配置税类。
+- 主题预览是 WebP 图集中的示意素材，不是真实店铺截图。
 
 精确验证矩阵和已知缺口见 [docs/TEST_REPORT.md](docs/TEST_REPORT.md)。
 

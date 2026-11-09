@@ -337,6 +337,75 @@ describe("CloudCart Milestone 1", () => {
     expect(stillPublished).not.toContain("Unpublished Later Draft");
   });
 
+  it("restores an older page version into the draft without changing the live page", async () => {
+    await ensureSession();
+    const versionA = {
+      version: 1,
+      page: "home",
+      sections: [
+        { id: "restore-a", type: "hero", enabled: true, settings: { title: "Restored Version A" } },
+      ],
+    };
+    const versionB = {
+      version: 1,
+      page: "home",
+      sections: [
+        { id: "restore-b", type: "hero", enabled: true, settings: { title: "Published Version B" } },
+      ],
+    };
+
+    await json("/api/admin/pages/home/draft", "PUT", { document: versionA }, csrfHeaders());
+    const firstPublish = await json("/api/admin/pages/home/publish", "POST", {}, csrfHeaders());
+    expect(firstPublish.status).toBe(200);
+    const a = ((await firstPublish.json()) as { data: { version: number } }).data.version;
+
+    await json("/api/admin/pages/home/draft", "PUT", { document: versionB }, csrfHeaders());
+    const secondPublish = await json("/api/admin/pages/home/publish", "POST", {}, csrfHeaders());
+    expect(secondPublish.status).toBe(200);
+    const b = ((await secondPublish.json()) as { data: { version: number } }).data.version;
+    expect(b).toBeGreaterThan(a);
+    expect(await (await request("/")).text()).toContain("Published Version B");
+
+    const restored = await json(`/api/admin/pages/home/versions/${a}/restore`, "POST", {}, csrfHeaders());
+    expect(restored.status).toBe(200);
+    const restoredBody = (await restored.json()) as { data: { version: number; document: unknown } };
+    expect(restoredBody.data.version).toBe(a);
+    expect(JSON.stringify(restoredBody.data.document)).toContain("Restored Version A");
+
+    // Restoring writes the draft only; the published page and version history are untouched.
+    const liveAfterRestore = await (await request("/")).text();
+    expect(liveAfterRestore).toContain("Published Version B");
+    expect(liveAfterRestore).not.toContain("Restored Version A");
+
+    const pageResponse = await request("/api/admin/pages/home");
+    const pageData = (await pageResponse.json()) as {
+      data: { draft: { sections: Array<{ settings: { title?: string } }> }; versions: Array<{ version: number }> };
+    };
+    expect(pageData.data.draft.sections[0]?.settings.title).toBe("Restored Version A");
+    expect(pageData.data.versions.some((version) => version.version === a)).toBe(true);
+
+    const republish = await json("/api/admin/pages/home/publish", "POST", {}, csrfHeaders());
+    expect(republish.status).toBe(200);
+    const c = ((await republish.json()) as { data: { version: number } }).data.version;
+    expect(c).toBeGreaterThan(b);
+    expect(await (await request("/")).text()).toContain("Restored Version A");
+
+    const missing = await json("/api/admin/pages/home/versions/999999/restore", "POST", {}, csrfHeaders());
+    expect(missing.status).toBe(404);
+
+    const created = await json("/api/admin/pages", "POST", { slug: "restore-target", title: "Restore Target" }, csrfHeaders());
+    expect(created.status).toBe(201);
+    const crossPage = await json(`/api/admin/pages/restore-target/versions/${a}/restore`, "POST", {}, csrfHeaders());
+    expect(crossPage.status).toBe(404);
+    const crossBody = (await crossPage.json()) as { error: { code: string } };
+    expect(crossBody.error.code).toBe("page_version_not_found");
+
+    // Old snapshots remain immutable after the restore and republish.
+    const original = await request(`/api/admin/pages/home/versions/${a}`);
+    expect(original.status).toBe(200);
+    expect(await original.text()).toContain("Restored Version A");
+  });
+
   it("exposes an enable/disable admin language pack plugin", async () => {
     await ensureSession();
     const disable = await json("/api/admin/plugins/admin-i18n/disable", "POST", {}, csrfHeaders());
