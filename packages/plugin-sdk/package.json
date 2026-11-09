@@ -8,6 +8,7 @@
   },
   "types": "./src/index.ts",
   "dependencies": {
-    "@cloudcart/shared": "workspace:*"
+    "@cloudcart/shared": "workspace:*",
+    "zod": "4.6.7"
   }
 }

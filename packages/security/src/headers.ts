@@ -4,11 +4,41 @@ export interface SecurityHeaderOptions {
   /** Inline bootstrap script carrying JSON page data. */
   allowInlineScripts?: boolean;
   frameAncestors?: string;
+  /** Exact origins allowed in frame-src (remote plugin admin pages). */
+  frameOrigins?: string[];
+  /** Test/E2E only: allow http://127.0.0.1 origins. */
+  allowInsecureFrameOrigins?: boolean;
+}
+
+const DEFAULT_FRAME_ORIGINS = [
+  "https://js.stripe.com",
+  "https://www.paypal.com",
+  "https://www.sandbox.paypal.com",
+];
+
+function frameOrigin(value: string, allowInsecure: boolean): string | null {
+  if (typeof value !== "string" || value.length > 255 || /["'\s]/.test(value)) return null;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  const local = url.hostname === "127.0.0.1" || url.hostname === "localhost";
+  if (url.protocol !== "https:" && !(allowInsecure && url.protocol === "http:" && local)) return null;
+  if (url.username || url.password || url.search || url.hash) return null;
+  if (url.pathname !== "/") return null;
+  return url.origin;
 }
 
 export function securityHeaders(options: SecurityHeaderOptions = {}): Record<string, string> {
   const styleSrc = options.allowInlineStyles === false ? "'self'" : "'self' 'unsafe-inline'";
   const scriptSrc = options.allowInlineScripts === false ? "'self'" : "'self' 'unsafe-inline'";
+  const frameOrigins = new Set(DEFAULT_FRAME_ORIGINS);
+  for (const origin of options.frameOrigins ?? []) {
+    const normalized = frameOrigin(origin, options.allowInsecureFrameOrigins === true);
+    if (normalized) frameOrigins.add(normalized);
+  }
   const csp = [
     "default-src 'self'",
     `script-src ${scriptSrc}`,
@@ -16,7 +46,7 @@ export function securityHeaders(options: SecurityHeaderOptions = {}): Record<str
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     "connect-src 'self'",
-    "frame-src 'self' https://js.stripe.com https://www.paypal.com https://www.sandbox.paypal.com",
+    `frame-src 'self' ${[...frameOrigins].join(" ")}`,
     `frame-ancestors ${options.frameAncestors ?? "'none'"}`,
     "base-uri 'self'",
     "form-action 'self'",

@@ -1,6 +1,6 @@
 {
   "name": "cloudcart",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "A lightweight, plugin-based, themeable ecommerce platform built natively for Cloudflare Workers Free.",
   "license": "MIT",
@@ -31,6 +31,7 @@
     "@cloudcart/core": "workspace:*",
     "@cloudcart/database": "workspace:*",
     "@cloudcart/plugin-email-notifications": "workspace:*",
+    "@cloudcart/plugin-sdk": "workspace:*",
     "@cloudcart/plugin-stripe": "workspace:*",
     "@cloudcart/security": "workspace:*",
     "@cloudcart/shared": "workspace:*",

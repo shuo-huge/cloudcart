@@ -137,6 +137,8 @@ default deployment model.
 | Admin shows “UI has not been built” | Run `pnpm build` before `wrangler dev`/deploy |
 | Setup page says to open the deployment link | Use the private setup URL printed by the latest successful deployment log |
 | Setup returns “already installed” | The store has an owner; use `/admin` |
+| Cannot find the site URL after one-click deploy | Open **Workers & Pages → your project → Visit**, or check the latest **Build logs** for the `Website / 网站` line. The Cloudflare build runs remotely and cannot open your browser |
+| Lost the one-time setup link | Retry the deployment before creating the administrator; a fresh link is printed in the new build log |
 | `wrangler` says not authenticated | `npx wrangler login` |
 | Deployment fails on missing `database_id` | Run the script (it writes the id) or set it manually |
 | Webhook signature failures | Verify the exact webhook secret and endpoint URL; Stripe requires the raw body |

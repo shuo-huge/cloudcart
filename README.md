@@ -11,7 +11,7 @@ One Worker · One D1 database · External image URLs · Optional R2
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![D1](https://img.shields.io/badge/Database-D1-0051FF)](https://developers.cloudflare.com/d1/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-49%20passing-brightgreen)](docs/TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-94%20passing-brightgreen)](docs/TEST_REPORT.md)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Architecture](docs/ARCHITECTURE.md) · [Deployment](docs/DEPLOYMENT.md)
 
@@ -63,6 +63,15 @@ Open the **Setup link** from the latest successful deployment log. The setup pag
 
 The one-time link stops working after the first administrator is created. If you deploy again before installation, use the refreshed link from the latest successful deployment log. No default admin password exists.
 
+### Where is my site link?
+
+The Deploy Button runs the build inside Cloudflare, so it cannot open a browser on your computer. You can find the URL in either place:
+
+1. **Build log**: **Workers & Pages → your project → Deployments → latest → Build logs**. The final lines contain `Website / 网站: https://…` and the one-time setup link.
+2. **Dashboard**: **Workers & Pages → your project → Visit**. The `https://<worker>.<subdomain>.workers.dev` URL is also listed under **Settings → Domains & Routes**.
+
+If the setup link is lost before the first administrator is created, retry the deployment; the script prints a fresh one-time link. If the store is already installed, open `/admin` instead.
+
 ## CLI deploy (recommended for a complete setup)
 
 ```bash
@@ -82,11 +91,12 @@ The CLI checks Node, Wrangler and Cloudflare login, then:
 6. preserves `APP_MASTER_KEY` and creates or refreshes the one-time setup token while the store is uninstalled,
 7. prints the store URL, admin URL and one-time setup link.
 
-Re-running is safe: existing resources and secrets are reused, and no data is overwritten.
+Re-running is safe: existing resources and secrets are reused, and no data is overwritten. On a local interactive terminal the script opens the store/setup page in your browser automatically; use `--no-open` (or `CLOUDCART_NO_OPEN=1`) to disable that.
 
 ```bash
 pnpm run deploy:cloudflare -- --name my-store   # named Worker / resources
 pnpm run deploy:cloudflare -- --check           # non-mutating environment check
+pnpm run deploy:cloudflare -- --no-open         # do not open a browser
 ```
 
 ---
@@ -149,7 +159,9 @@ Three-column editor with SortableJS drag ordering, add/remove/duplicate/hide sec
 Provider credentials are AES-GCM encrypted with a key derived from `APP_MASTER_KEY` and never returned to the browser.
 
 ### Plugins
-Build-time bundled, runtime enabled/disabled, with D1-backed settings. The registry rejects plugins that are not in the current build. Included: Manual, Stripe, PayPal, the **Admin Language Pack** (English / 简体中文), and **Email Notifications** (Resend or Cloudflare Email Workers, D1 outbox with retries and an admin log; disabled by default).
+Build-time bundled plugins are enabled/disabled at runtime with D1-backed settings. The registry rejects bundled plugins that are not in the current build. Included: Manual, Stripe, PayPal, the **Admin Language Pack** (English / 简体中文), and **Email Notifications** (Resend or Cloudflare Email Workers, D1 outbox with retries and an admin log; disabled by default).
+
+**Remote plugins** are installed by Manifest URL without rebuilding the Worker. Their code and admin page run on the plugin author's HTTPS service; CloudCart stores only the manifest and calls signed APIs. Enabled remote plugins add their own pages to the admin sidebar and open inside an iframe. The iframe receives a 5-minute, plugin-scoped JWT via `postMessage` and can call the permission-limited `/api/plugin/v1/*` API. Disabling a plugin revokes access on the next request. A working example lives in [`examples/remote-plugin`](examples/remote-plugin).
 
 ### Security
 PBKDF2 passwords, HMAC-bound session cookies, CSRF double-submit, login rate limiting, prepared statements everywhere, an allow-list HTML sanitiser, magic-byte image validation, open-redirect protection, verified webhooks, and audit logging.
@@ -162,9 +174,10 @@ PBKDF2 passwords, HMAC-bound session cookies, CSRF double-submit, login rate lim
 Browser
   └─ Cloudflare edge
        ├─ Workers Static Assets     /static/*, /static/admin-ui/*
-       └─ Worker (Hono)             /, /api/*, /admin, /media/*, /webhooks/*
+       └─ Worker (Hono)             /, /api/*, /api/plugin/v1/*, /admin, /media/*, /webhooks/*
             ├─ D1 (SQLite)          products, orders, pages, settings, sessions…
-            └─ optional R2           direct image uploads (HTTPS image URLs work without it)
+            ├─ optional R2           direct image uploads (HTTPS image URLs work without it)
+            └─ remote plugins        signed HTTPS API + iframe admin, on the plugin author's server
 ```
 
 ```
@@ -177,8 +190,9 @@ packages/security Web Crypto, sessions, secret encryption, sanitising
 packages/shared   money, ids, slugs, types
 packages/plugin-sdk, theme-sdk, ui
 plugins/          admin/i18n, payments/{manual,stripe,paypal}, notifications/email
+examples/         remote-plugin developer example
 themes/           8 bundled themes
-migrations/       4 D1 migrations
+migrations/       5 D1 migrations
 scripts/          deploy CLI and asset preparation
 tests/            workerd integration tests
 docs/             architecture, plugin/theme/payment/deployment/security/testing docs
@@ -190,15 +204,17 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design, order sta
 
 ## Project status
 
-**v0.2.0 — functional, not yet declared 1.0.** The repository is honest about what works and what does not.
+**v0.3.0 — functional, not yet declared 1.0.** The repository is honest about what works and what does not.
 
-Implemented and tested: setup/login/CSRF, products/categories/media, drag-reordered product images, server cart, guest checkout, stock reservation, tax calculation (inclusive/exclusive, country/region rules), manual payment, order fulfilment, 8 themes, page editor draft/preview/publish with version restore, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, email notifications with a D1 outbox and provider retries, 49 workerd tests, and 7 Playwright browser specs.
+Implemented and tested: setup/login/CSRF, products/categories/media, drag-reordered product images, server cart, guest checkout, stock reservation, tax calculation (inclusive/exclusive, country/region rules), manual payment, order fulfilment, 8 themes, page editor draft/preview/publish with version restore, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, email notifications with a D1 outbox and provider retries, hybrid bundled/remote plugins with iframe admin pages, short-lived plugin JWTs, HMAC service calls, remote payment adapters, 94 workerd tests, and 10 Playwright browser tests (11 including setup).
 
 Not yet verified or missing:
 - No live Stripe/PayPal Sandbox transaction has been run in this repository; provider APIs are mocked in tests. Sandbox credentials are still to be supplied.
 - A Workers Builds deployment succeeded in the maintainer's Cloudflare account, but this change set has not been re-deployed.
 - PayPal uses hosted approval redirects, not embedded Smart Buttons.
 - No live email provider delivery has been exercised; Resend and Cloudflare transports are mocked or unit-tested.
+- No public plugin marketplace, publisher signatures, ratings, billing, or automatic plugin updates.
+- Remote themes, remote storefront code, and remote shipping/product logic are not supported.
 - No tax-exempt customer certificates or per-product tax classes.
 - Theme previews are illustrative raster tiles in a WebP atlas, not screenshots of a running store.
 

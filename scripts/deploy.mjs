@@ -10,8 +10,9 @@
  *   node scripts/deploy.mjs --name cloudcart-fashion
  *   node scripts/deploy.mjs --check          # non-mutating environment check
  *   node scripts/deploy.mjs --skip-build
+ *   node scripts/deploy.mjs --no-open        # do not open the browser
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -134,6 +135,33 @@ function sanitizeName(value) {
 
 function randomSecret(bytes) {
   return crypto.randomBytes(bytes).toString("base64url");
+}
+
+/**
+ * A local interactive deployment can open the store in the user's browser.
+ * Deploy to Cloudflare runs this script inside Workers Builds, where there is
+ * no user browser to open; those deployments rely on the build log and the
+ * dashboard's Visit link instead.
+ */
+function shouldOpenBrowser() {
+  if (flags.has("--no-open") || process.env.CLOUDCART_NO_OPEN) return false;
+  if (process.env.CI || process.env.WORKERS_CI || process.env.GITHUB_ACTIONS) return false;
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return false;
+  if (process.platform === "win32" || process.platform === "darwin") return true;
+  return Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
+}
+
+function openInBrowser(url) {
+  const child = process.platform === "win32"
+    ? spawn("cmd", ["/c", "start", "", url], { stdio: "ignore", detached: true })
+    : process.platform === "darwin"
+      ? spawn("open", [url], { stdio: "ignore", detached: true })
+      : spawn("xdg-open", [url], { stdio: "ignore", detached: true });
+  child.on("error", () => {
+    // A missing browser launcher must never fail an otherwise successful deploy.
+  });
+  child.unref();
+  return true;
 }
 
 async function askStoreName(defaultName) {
@@ -327,18 +355,37 @@ async function main() {
     deployedAt: new Date().toISOString(),
   });
 
-  log("─────────────────────────────────────────────");
-  console.log(`Store:        ${workerUrl}`);
-  console.log(`Admin:        ${workerUrl}/admin`);
-  if (setupToken) {
-    console.log(`Setup link:   ${workerUrl}/setup?token=${encodeURIComponent(setupToken)}`);
-    console.log("Open this private one-time link to create the store owner. No technical secrets need to be entered.");
-  } else {
-    console.log(`Setup:        already complete — ${workerUrl}/admin`);
-  }
+  const setupLink = setupToken
+    ? `${workerUrl}/setup?token=${encodeURIComponent(setupToken)}`
+    : null;
+  const browserUrl = setupLink ?? `${workerUrl}/admin`;
+
+  log("============================================================");
+  console.log("  YOUR STORE IS READY / 商城已部署");
   console.log("");
-  console.log("The one-time setup link stops working permanently after the first administrator is created.");
+  console.log(`  Website / 网站:  ${workerUrl}`);
+  console.log(`  Admin / 后台:    ${workerUrl}/admin`);
+  if (setupLink) {
+    console.log("");
+    console.log("  Finish setup / 打开下面链接创建管理员（一次性，请勿分享）:");
+    console.log(`  ${setupLink}`);
+  }
+  log("============================================================");
+  if (setupLink) {
+    console.log("The one-time setup link stops working permanently after the first administrator is created.");
+  }
   console.log(`Deployment state (including generated secrets) was saved to ${path.relative(ROOT, STATE_PATH)} — keep it private.`);
+
+  if (shouldOpenBrowser()) {
+    try {
+      openInBrowser(browserUrl);
+      console.log("Opened the store in your browser. If it did not open, copy the Website link above.");
+    } catch {
+      console.log("Could not open a browser automatically — copy the Website link above.");
+    }
+  } else {
+    console.log("Cloudflare Workers Builds runs remotely and cannot open your browser. Use the Website link above, or Dashboard → Workers & Pages → your project → Visit.");
+  }
   log("Done.");
 }
 

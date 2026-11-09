@@ -62,6 +62,15 @@ Cloudflare 会把 CloudCart 部署到**你的账户**并创建 D1。R2 是可选
 
 创建第一个管理员后，一次性链接立即失效。如果在初始化前再次部署，请使用最新一次成功部署日志中的新链接。系统没有默认管理员密码。
 
+### 部署成功后，我的网站链接在哪里？
+
+一键部署按钮在 Cloudflare 云端运行，无法在你的电脑上自动打开浏览器。可以从这两个地方找到网址：
+
+1. **构建日志**：**Workers & Pages → 你的项目 → Deployments / 部署 → 最新一次 → Build logs / 构建日志**。日志最后会显示 `Website / 网站: https://…` 和一次性安装链接。
+2. **Dashboard**：**Workers & Pages → 你的项目 → Visit**。`https://<worker>.<子域>.workers.dev` 也可以在该项目的 **Settings → Domains & Routes** 中看到。
+
+如果还没创建管理员就丢失了安装链接，重新执行一次部署即可；脚本会生成并打印新的一次性链接。如果商城已经安装完成，直接打开 `/admin` 登录。
+
 ## CLI 部署（推荐，最完整）
 
 ```bash
@@ -81,11 +90,12 @@ pnpm run deploy:cloudflare
 6. 保留现有 `APP_MASTER_KEY`，并在商城尚未初始化时生成或刷新一次性安装令牌；
 7. 输出商城地址、后台地址和一次性初始化链接。
 
-可重复执行：已有资源和密钥会复用，不会覆盖业务数据。
+可重复执行：已有资源和密钥会复用，不会覆盖业务数据。在本地交互式终端运行时，脚本部署完成后会自动打开商城/安装页面；使用 `--no-open`（或 `CLOUDCART_NO_OPEN=1`）可以关闭自动打开。
 
 ```bash
 pnpm run deploy:cloudflare -- --name my-store   # 指定 Worker/资源名称
 pnpm run deploy:cloudflare -- --check           # 只检查环境，不修改资源
+pnpm run deploy:cloudflare -- --no-open         # 不自动打开浏览器
 ```
 
 ---
@@ -148,7 +158,9 @@ Default、Fashion、Beauty、Electronics、Jewelry、Home、Sports、Single Prod
 支付密钥使用由 `APP_MASTER_KEY` 派生的 AES-GCM 密钥加密，永远不会返回浏览器。
 
 ### 插件
-构建时打包、运行时启停、设置保存在 D1。未打包进当前 Worker 的插件无法启用。内置：Manual、Stripe、PayPal、**Admin Language Pack**（English / 简体中文），以及 **Email Notifications**（Resend 或 Cloudflare Email Workers，D1 发件箱、失败重试和后台日志；默认关闭）。
+内置插件构建时打包、运行时启停，设置保存在 D1；未打包进当前 Worker 的内置插件无法启用。内置：Manual、Stripe、PayPal、**Admin Language Pack**（English / 简体中文），以及 **Email Notifications**（Resend 或 Cloudflare Email Workers，D1 发件箱、失败重试和后台日志；默认关闭）。
+
+**远程插件**通过 Manifest URL 安装，无需重新构建 Worker。插件代码和后台页面运行在插件作者自己的 HTTPS 服务上；CloudCart 只保存 Manifest 并调用签名 API。启用的远程插件会自动在后台左侧添加菜单，并通过 iframe 打开。iframe 通过 `postMessage` 获得 5 分钟、按插件限权的 JWT，可调用 `/api/plugin/v1/*` 受限 API；禁用后下一次请求立即失效。完整示例见 [`examples/remote-plugin`](examples/remote-plugin)。
 
 ### 安全
 PBKDF2 密码、HMAC Session、CSRF 双提交、登录限流、全部预编译 SQL、HTML 白名单消毒、图片魔数校验、开放重定向防护、Webhook 验签、审计日志。
@@ -161,9 +173,10 @@ PBKDF2 密码、HMAC Session、CSRF 双提交、登录限流、全部预编译 S
 浏览器
   └─ Cloudflare 边缘
        ├─ Workers Static Assets     /static/*, /static/admin-ui/*
-       └─ Worker (Hono)             /, /api/*, /admin, /media/*, /webhooks/*
+       └─ Worker (Hono)             /, /api/*, /api/plugin/v1/*, /admin, /media/*, /webhooks/*
             ├─ D1 (SQLite)          商品、订单、页面、设置、会话…
-            └─ 可选 R2               直接上传图片（不启用时使用 HTTPS 图片外链）
+            ├─ 可选 R2               直接上传图片（不启用时使用 HTTPS 图片外链）
+            └─ 远程插件              插件作者服务器上的签名 HTTPS API + iframe 后台
 ```
 
 ```
@@ -176,8 +189,9 @@ packages/security Web Crypto、会话、密钥加密、消毒
 packages/shared   金额、ID、Slug、类型
 packages/plugin-sdk, theme-sdk, ui
 plugins/          admin/i18n、payments/{manual,stripe,paypal}、notifications/email
+examples/         remote-plugin 远程插件示例
 themes/           8 套内置主题
-migrations/       4 个 D1 迁移
+migrations/       5 个 D1 迁移
 scripts/          部署 CLI 与资源准备
 tests/            workerd 集成测试
 docs/             架构、插件、主题、支付、部署、安全、测试文档
@@ -189,15 +203,17 @@ docs/             架构、插件、主题、支付、部署、安全、测试�
 
 ## 项目状态
 
-**v0.2.0 — 功能可用，但尚未宣称 1.0。** 已实现和未实现的事项都明确列出。
+**v0.3.0 — 功能可用，但尚未宣称 1.0。** 已实现和未实现的事项都明确列出。
 
-已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、49 个 workerd 测试、7 个 Playwright 浏览器测试。
+已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、内置/远程混合插件与 iframe 后台、短期插件 JWT、HMAC 服务调用、远程支付适配器、94 个 workerd 测试、10 个 Playwright 浏览器测试（含 setup 共 11 个）。
 
 未验证或尚未完成：
 - 仓库内**没有对真实 Stripe/PayPal Sandbox 发起过交易**；测试中支付接口使用确定性 mock，Sandbox 账号待补充。
 - 维护者账户中的 Workers Builds 部署曾成功，但本次变更尚未重新部署。
 - PayPal 使用托管审批跳转，不是嵌入式 Smart Buttons。
 - 尚未接入真实邮件服务商发送；Resend 与 Cloudflare 通道使用 mock 或单元测试验证。
+- 暂无公共插件市场、发布者签名、评分、付费或自动更新。
+- 不支持远程主题、远程店铺前端、远程运费/商品核心逻辑。
 - 暂无免税客户证明、按商品配置税类。
 - 主题预览是 WebP 图集中的示意素材，不是真实店铺截图。
 

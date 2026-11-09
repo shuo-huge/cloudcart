@@ -28,6 +28,7 @@ import {
   getOrderDetail,
   getPage,
   getPluginSettings,
+  getRemotePluginRow,
   getSettings,
   getThemeSettings,
   listAdminProducts,
@@ -90,8 +91,9 @@ import { z } from "zod";
 import type { AppContext } from "../env";
 import { db, jsonError, loadStorefrontRuntime, readJson } from "../lib";
 import { STOREFRONT_CSS, STOREFRONT_JS } from "../generated/assets";
-import { getPaymentPlugin } from "../plugin-registry";
+import { resolvePaymentPlugin } from "../payment-plugin-resolver";
 import { notifyOrderEvent, processEmailQueue } from "../email";
+import { healthCheckRemotePlugin } from "../remote-plugin-service";
 import { hasTheme, listThemeDefinitions } from "../theme-registry";
 import { pluginRegistry } from "../plugin-registry";
 
@@ -614,7 +616,7 @@ adminRoutes.post("/orders/:id/refund", async (c) => {
     if (!detail) throw new HttpError(404, "order_not_found", "Order not found.");
     const method = detail.order.payment_method ?? "";
     if (method !== "manual") {
-      const plugin = getPaymentPlugin(method);
+      const plugin = await resolvePaymentPlugin(db(c), c.env.APP_MASTER_KEY, method, { includeDisabled: true });
       if (!plugin?.refund) throw new HttpError(400, "refund_unsupported", "This payment method does not support refunds.");
       const transaction = detail.transactions.find((entry) => entry.status === "succeeded");
       if (!transaction) throw new HttpError(409, "no_transaction", "No successful payment transaction to refund.");
@@ -1078,6 +1080,17 @@ adminRoutes.post("/plugins/:id/enable", async (c) => {
   try {
     await setPluginEnabled(db(c), pluginRegistry, c.req.param("id"), true);
     await audit(c, "plugin.enabled", "plugin", c.req.param("id"));
+    if (!pluginRegistry.has(c.req.param("id"))) {
+      const remote = await getRemotePluginRow(db(c), c.req.param("id"));
+      if (remote) {
+        const health = healthCheckRemotePlugin(db(c), c.env, remote).catch(() => undefined);
+        try {
+          c.executionCtx.waitUntil(health);
+        } catch {
+          void health;
+        }
+      }
+    }
     return c.json({ ok: true });
   } catch (error) {
     return fail(c, error);

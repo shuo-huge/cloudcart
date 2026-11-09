@@ -21,7 +21,10 @@ export interface PaymentMethod {
  */
 export async function getEnabledPaymentMethods(db: Database): Promise<PaymentMethod[]> {
   const rows = await db.all<{ id: string; name: string; description: string }>(
-    "SELECT id, name, description FROM plugins WHERE type = 'payment' AND enabled = 1 AND built_in = 1 ORDER BY id",
+    `SELECT id, name, description FROM plugins
+     WHERE type = 'payment' AND enabled = 1 AND uninstalled_at IS NULL
+       AND (built_in = 1 OR runtime = 'remote')
+     ORDER BY id`,
   );
   return rows.map((row) => ({
     id: row.id,
@@ -33,7 +36,8 @@ export async function getEnabledPaymentMethods(db: Database): Promise<PaymentMet
 export async function isPaymentMethodEnabled(db: Database, methodId: string): Promise<boolean> {
   if (!/^[a-z0-9-]{1,60}$/.test(methodId)) return false;
   return db.exists(
-    "SELECT 1 FROM plugins WHERE id = ? AND type = 'payment' AND enabled = 1 AND built_in = 1",
+    `SELECT 1 FROM plugins WHERE id = ? AND type = 'payment' AND enabled = 1 AND uninstalled_at IS NULL
+       AND (built_in = 1 OR runtime = 'remote')`,
     [methodId],
   );
 }

@@ -1,4 +1,5 @@
 import type { PluginType } from "@cloudcart/shared";
+import type { RemotePluginAdminConfig, RemotePluginServiceConfig } from "./remote";
 
 export const PLUGIN_API_VERSION = "1";
 
@@ -16,6 +17,10 @@ export interface PluginManifest {
   dependencies?: string[];
   icon?: string;
   author?: string;
+  /** Defaults to "bundled" for backward compatibility. */
+  runtime?: "bundled" | "remote";
+  service?: RemotePluginServiceConfig;
+  admin?: RemotePluginAdminConfig;
 }
 
 export interface PluginHealth {

@@ -30,7 +30,7 @@ import {
   setCartCookie,
   type StorefrontRuntime,
 } from "../lib";
-import { getPaymentPlugin } from "../plugin-registry";
+import { resolvePaymentPlugin } from "../payment-plugin-resolver";
 import { notifyOrderEvent } from "../email";
 import { orderSnapshot, retryPayment } from "./payments";
 
@@ -164,7 +164,9 @@ storefrontRoutes.post("/checkout", async (c) => {
   }
 
   const paymentMethod = parsed.data.paymentMethod;
-  const paymentPlugin = paymentMethod === "manual" ? null : getPaymentPlugin(paymentMethod);
+  const paymentPlugin = paymentMethod === "manual"
+    ? null
+    : await resolvePaymentPlugin(runtime.db, c.env.APP_MASTER_KEY, paymentMethod);
   let paymentConfig: Record<string, string> = {};
   if (paymentMethod !== "manual") {
     if (!paymentPlugin) {
