@@ -8,7 +8,7 @@ const TOKEN_FILE = path.resolve("e2e/.auth/setup-token.txt");
 const OWNER = {
   email: "e2e-owner@example.com",
   password: "E2ePassword123!",
-  name: "E2E Owner",
+  name: "Avery Chen",
   storeName: "E2E Store",
   currency: "USD",
 };
@@ -45,6 +45,17 @@ setup("seeds a deterministic store", async ({ request }) => {
     const body = await response.json() as { data?: { id?: string } };
     return body.data ?? {};
   }
+
+  await put("/api/admin/media/storage", {
+    defaultProvider: "jsdelivr",
+    jsdelivr: {
+      owner: "acme",
+      repo: "media",
+      branch: "main",
+      path: "products",
+      token: "github_pat_e2e",
+    },
+  });
 
   await put("/api/admin/settings", {
     settings: {

@@ -7,6 +7,7 @@ dist/
 !.env.example
 !.dev.vars.example
 coverage/
+.astro/
 .e2e/
 e2e/.auth/
 playwright-report/

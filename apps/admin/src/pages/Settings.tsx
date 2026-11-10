@@ -3,6 +3,7 @@ import { useEffect, useState } from "preact/hooks";
 import { adminGet, adminSend } from "../api";
 import { DataTable, ErrorBox, Field, Loading, Modal, toast, useAsync } from "../components";
 import { FREE_TIER_NOTE } from "../constants";
+import { MediaStorageSettings } from "../media-storage-settings";
 
 interface SettingsData {
   settings: Record<string, string>;
@@ -203,6 +204,8 @@ export function SettingsPage() {
           <button type="submit" class="button button--primary" disabled={saving}>{saving ? "Saving…" : "Save settings"}</button>
         </form>
       </section>
+
+      <MediaStorageSettings />
 
       <section class="card">
         <h2>Taxes</h2>

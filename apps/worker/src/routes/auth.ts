@@ -49,6 +49,9 @@ authRoutes.post("/login", async (c) => {
 });
 
 authRoutes.post("/logout", async (c) => {
+  if (c.get("authMethod") === "api_key") {
+    return jsonError(c, 403, "session_required", "API keys are revoked through the API key endpoints.");
+  }
   const sessionId = c.get("sessionId");
   const adminId = c.get("adminId");
   if (sessionId && adminId) {
@@ -64,7 +67,15 @@ authRoutes.get("/me", async (c) => {
     [c.get("adminId")],
   );
   if (!admin) return jsonError(c, 401, "unauthorized", "Sign in is required.");
-  return c.json({ ok: true, admin, csrfToken: c.get("csrfToken") });
+  const authMethod = c.get("authMethod");
+  return c.json({
+    ok: true,
+    admin,
+    csrfToken: authMethod === "api_key" ? null : c.get("csrfToken"),
+    authMethod,
+    keyId: c.get("apiKeyId") ?? null,
+    scopes: c.get("apiKeyScopes") ?? [],
+  });
 });
 
 authRoutes.post("/setup", async (c) => {
@@ -185,12 +196,18 @@ export function renderSetupHtml(error: string, warning: string | null, setupToke
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#173d2b">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <title>Set up CloudCart</title>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f4f2ee; color: #1e1e1c; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px; }
   main { width: min(520px, 100%); background: #fff; border: 1px solid #e2ded5; border-radius: 10px; padding: 36px; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; font-weight: 600; font-size: 1rem; }
+  .brand img { width: 28px; height: 28px; border-radius: 7px; }
   h1 { margin: 0 0 6px; font-size: 1.8rem; letter-spacing: -0.02em; }
   p.lead { margin: 0 0 26px; color: #6d6a63; font-size: .95rem; }
   label { display: block; font-size: .8rem; font-weight: 600; margin: 16px 0 6px; }
@@ -203,6 +220,7 @@ export function renderSetupHtml(error: string, warning: string | null, setupToke
 </head>
 <body>
 <main>
+  <div class="brand"><img src="/favicon.svg" alt="" width="28" height="28">CloudCart</div>
   <h1>Set up CloudCart</h1>
   <p class="lead">Create the store owner account. This screen closes permanently once setup is complete.</p>
   ${error ? `<div class="error">${escapeHtml(error)}</div>` : ""}

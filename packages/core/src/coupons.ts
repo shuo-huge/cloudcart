@@ -38,6 +38,23 @@ export async function getCoupon(db: Database, id: string): Promise<CouponRow | n
   return db.first<CouponRow>("SELECT * FROM coupons WHERE id = ?", [id]);
 }
 
+export async function getCouponDetail(
+  db: Database,
+  id: string,
+): Promise<{ coupon: CouponRow; productIds: string[]; categoryIds: string[] } | null> {
+  const coupon = await getCoupon(db, id);
+  if (!coupon) return null;
+  const [products, categories] = await Promise.all([
+    db.all<{ product_id: string }>("SELECT product_id FROM coupon_products WHERE coupon_id = ?", [id]),
+    db.all<{ category_id: string }>("SELECT category_id FROM coupon_categories WHERE coupon_id = ?", [id]),
+  ]);
+  return {
+    coupon,
+    productIds: products.map((row) => row.product_id),
+    categoryIds: categories.map((row) => row.category_id),
+  };
+}
+
 export async function createCoupon(db: Database, input: CouponInput, currency: string): Promise<string> {
   const code = input.code.trim().toUpperCase();
   if (!/^[A-Z0-9_-]{1,60}$/.test(code)) {

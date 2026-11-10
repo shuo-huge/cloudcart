@@ -4,14 +4,14 @@
 
 **A free, open-source, plugin-based ecommerce platform built natively for Cloudflare Workers.**
 
-One Worker · One D1 database · External image URLs · Optional R2
+One Worker · One D1 database · Local uploads to R2 or jsDelivr · Optional external URLs
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![D1](https://img.shields.io/badge/Database-D1-0051FF)](https://developers.cloudflare.com/d1/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-94%20passing-brightgreen)](docs/TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-105%20passing-brightgreen)](docs/TEST_REPORT.md)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Architecture](docs/ARCHITECTURE.md) · [Deployment](docs/DEPLOYMENT.md)
 
@@ -30,7 +30,7 @@ CloudCart exists because most ecommerce stacks force you to choose between payin
 | Pain point | How CloudCart fixes it |
 |---|---|
 | **Shopify-style subscriptions + paid apps** | No platform subscription. Runs inside Cloudflare Workers Free. You pay for your domain and payment-provider fees, not hosting. |
-| **VPS, MySQL, Redis, SSL, backups** | No server to patch, no database to provision. D1 is managed by Cloudflare; images can use public HTTPS URLs, and R2 is optional for direct uploads. |
+| **VPS, MySQL, Redis, SSL, backups** | No server to patch, no database to provision. D1 is managed by Cloudflare; images can be uploaded to R2 or published through jsDelivr, with external HTTPS URLs still available. |
 | **SaaS lock-in and shared tenants** | Every store is its own Worker + D1 in **your** Cloudflare account; R2 can be added later. You own the data, the code, and the domain. |
 | **Heavy SSR frameworks exceed free CPU limits** | Hono + Preact + small string-based SSR. Every public page is still server-rendered and SEO-readable. |
 | **Expensive themes and closed page builders** | 8 structurally different bundled themes, a live three-column page editor, and a documented Theme SDK. MIT licensed. |
@@ -50,6 +50,20 @@ CloudCart exists because most ecommerce stacks force you to choose between payin
 | Themes | 8 bundled + SDK | Paid themes | Free/paid extensions |
 | Visual page editor | Built in | Built in | Third-party |
 | Open source | **MIT** | No | GPL |
+
+---
+
+## Screenshots
+
+A running CloudCart admin with the bundled English UI and demo catalog data. The Chinese README shows the same pages with the Simplified Chinese language pack enabled.
+
+| Dashboard | Products |
+| :---: | :---: |
+| <img src="docs/images/screenshots/en/dashboard.jpg" alt="CloudCart admin dashboard with orders, sales and inventory" width="100%"> | <img src="docs/images/screenshots/en/products.jpg" alt="CloudCart product catalog with prices, stock and categories" width="100%"> |
+| **Orders and fulfilment** | **Product editor with local media uploads** |
+| <img src="docs/images/screenshots/en/orders.jpg" alt="CloudCart order list with payment and fulfilment status" width="100%"> | <img src="docs/images/screenshots/en/product-media.jpg" alt="Product editor uploading images to jsDelivr or R2" width="100%"> |
+| **Visual page builder** | **Media storage: R2 or jsDelivr** |
+| <img src="docs/images/screenshots/en/page-builder.jpg" alt="CloudCart visual page builder with live storefront preview" width="100%"> | <img src="docs/images/screenshots/en/settings-media.jpg" alt="CloudCart media storage settings for R2 and jsDelivr" width="100%"> |
 
 ---
 
@@ -103,7 +117,7 @@ pnpm run deploy:cloudflare -- --no-open         # do not open a browser
 
 ## Local development
 
-Requirements: Node.js 20+ (CI uses 24; `.nvmrc` pins 22) and pnpm 10+ (`packageManager` pins 12.16.1).
+Requirements: Node.js 20+ for the store (CI uses 24; `.nvmrc` pins 22) and pnpm 10+ (`packageManager` pins 12.16.1). The documentation site uses Astro 6 and requires Node.js 22.12+.
 
 ```bash
 pnpm install
@@ -130,13 +144,71 @@ pnpm test:e2e
 
 ---
 
+## Documentation site
+
+The public user manual lives in `apps/docs` and uses Astro Starlight. It deploys independently from the store Worker.
+
+```bash
+pnpm docs:dev       # local preview at http://localhost:4321
+pnpm docs:build     # static output in apps/docs/dist
+pnpm docs:deploy    # build and deploy the cloudcart-docs Worker
+```
+
+`docs:deploy` uses `wrangler.docs.jsonc` and creates a separate static-assets Worker named `cloudcart-docs`. You can also deploy the same `apps/docs/dist` output through Cloudflare Pages.
+
+Set `DOCS_SITE_URL` before `docs:deploy` (for example `DOCS_SITE_URL=https://docs.example.com`) so canonical URLs and the sitemap use the public domain.
+
+Edit pages under `apps/docs/src/content/docs/**/*.md`; edit the sidebar in `apps/docs/astro.config.mjs`.
+
+Brand icons live in `brand/`. The committed favicon/App icon files are generated from the SVG masters there; run `pnpm icons` after changing the artwork.
+
+---
+
+## Admin CLI (agent-friendly)
+
+`apps/cli` exposes the admin API as a zero-dependency Node CLI so Claude Code, Cursor, Codex, Gemini CLI and scripts can publish products, pages, blog posts, orders and marketing settings without a browser session.
+
+```bash
+# First login (creates a scoped API key and stores it in your user profile)
+pnpm cloudcart auth login --url https://your-store.example.com --email owner@example.com
+
+# Content operations
+pnpm cloudcart products list --json
+pnpm cloudcart products create --name "Canvas Tote" --price 25.00 --status active --image https://example.com/tote.jpg --json
+pnpm cloudcart blog create --title "Launch notes" --slug launch-notes --text-file post.html --publish --json
+
+# Orders and marketing
+pnpm cloudcart orders list --json
+pnpm cloudcart coupons create --code SAVE10 --type percent --value 10 --json
+
+# Discovery for agents
+pnpm cloudcart capabilities --json
+pnpm cloudcart schema product
+```
+
+For non-interactive agents, set `CLOUDCART_URL` and `CLOUDCART_API_KEY` in the environment. Add `--json` for stable machine-readable output, `--dry-run` before writes, and `--yes` for destructive operations. API keys are scoped to specific resources, hashed in D1, and revocable with `cloudcart auth logout`.
+
+Product images can be uploaded from Admin or the CLI. Configure the default provider in **Settings → Media storage**:
+
+- **R2** — available when the deployment has a `MEDIA` binding
+- **jsDelivr** — publish to a public GitHub repo using a fine-grained PAT (Contents: Read and write); the token is encrypted at rest
+
+```bash
+pnpm cloudcart media upload ./photo.jpg --storage jsdelivr --json
+pnpm cloudcart products images attach PRODUCT_ID --image-url https://example.com/photo.jpg --storage jsdelivr --json
+```
+
+External HTTPS URLs remain available through the advanced panel in Admin or `--external` in the CLI. The standalone `publish:jsdelivr` script is still available for manual bulk publishing. jsDelivr is intended for open-source projects; review its terms before using it for a commercial catalog. R2 is the safer production choice.
+
+Blog posts reuse content pages: each post is published at `/pages/<slug>` with a rich-text section. CloudCart does not ship a posts table, `/blog` index or RSS feed. See [`docs/CLI.md`](docs/CLI.md) for the full command reference.
+
 ## What you get
 
 ### Storefront
 Server-rendered HTML for home, collections, search, product pages, cart, checkout and content pages. Meta tags, canonical URLs, Open Graph, Twitter cards, Product/Breadcrumb/Website JSON-LD, `sitemap.xml`, `robots.txt`, and 301 redirects are built in. Product names and descriptions are crawlable without JavaScript.
 
 ### Admin
-Dashboard, products and variants, categories, external image URLs (optional R2 uploads), drag-reordered product image galleries, orders, customers, discounts, shipping zones and rates, tax rates, themes, visual page builder with version restore, plugins, email notifications with an outbox log, payment configuration, media library, store settings, SEO redirects, audit log, and local resource estimates.
+Dashboard, products and variants, categories, local image uploads to R2 or jsDelivr (plus advanced external URLs), drag-reordered product image galleries, orders, customers, discounts, shipping zones and rates, tax rates, themes, visual page builder with version restore, plugins, email notifications with an outbox log, payment configuration, media library, store settings, SEO redirects, audit log, and local resource estimates.
 
 ### Commerce core
 Server-side revalidation of prices, stock, coupons, shipping and tax on every checkout. Integer minor-unit money, order snapshots, atomic stock reservation with compensation, an explicit order state machine, manual payment confirmation with an audit trail, and manual shipment tracking. Tax supports country/region rate rules, a default rate, and tax-inclusive or tax-exclusive pricing; tax is included in the order total sent to payment providers.
@@ -176,7 +248,7 @@ Browser
        ├─ Workers Static Assets     /static/*, /static/admin-ui/*
        └─ Worker (Hono)             /, /api/*, /api/plugin/v1/*, /admin, /media/*, /webhooks/*
             ├─ D1 (SQLite)          products, orders, pages, settings, sessions…
-            ├─ optional R2           direct image uploads (HTTPS image URLs work without it)
+            ├─ optional R2           direct image uploads (jsDelivr and HTTPS URLs also work)
             └─ remote plugins        signed HTTPS API + iframe admin, on the plugin author's server
 ```
 
@@ -184,6 +256,8 @@ Browser
 apps/worker       Hono API, SSR, webhooks, media, admin shell
 apps/admin        Preact admin SPA + page editor
 apps/storefront   small client bundle (cart, newsletter)
+apps/docs         Astro Starlight public documentation site
+apps/cli          Agent-friendly admin CLI (zero dependencies)
 packages/core     commerce services and business rules
 packages/database D1 wrapper, row types, resource guard
 packages/security Web Crypto, sessions, secret encryption, sanitising
@@ -192,8 +266,9 @@ packages/plugin-sdk, theme-sdk, ui
 plugins/          admin/i18n, payments/{manual,stripe,paypal}, notifications/email
 examples/         remote-plugin developer example
 themes/           8 bundled themes
-migrations/       5 D1 migrations
-scripts/          deploy CLI and asset preparation
+brand/            CloudCart icon masters and generated favicon/app icons
+migrations/       7 D1 migrations
+scripts/          deploy CLI, icon generation, jsDelivr media publishing
 tests/            workerd integration tests
 docs/             architecture, plugin/theme/payment/deployment/security/testing docs
 ```
@@ -204,9 +279,9 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design, order sta
 
 ## Project status
 
-**v0.3.0 — functional, not yet declared 1.0.** The repository is honest about what works and what does not.
+**v0.5.0 — functional, not yet declared 1.0.** The repository is honest about what works and what does not.
 
-Implemented and tested: setup/login/CSRF, products/categories/media, drag-reordered product images, server cart, guest checkout, stock reservation, tax calculation (inclusive/exclusive, country/region rules), manual payment, order fulfilment, 8 themes, page editor draft/preview/publish with version restore, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, email notifications with a D1 outbox and provider retries, hybrid bundled/remote plugins with iframe admin pages, short-lived plugin JWTs, HMAC service calls, remote payment adapters, 94 workerd tests, and 10 Playwright browser tests (11 including setup).
+Implemented and tested: setup/login/CSRF, products/categories/media, drag-reordered product images, server cart, guest checkout, stock reservation, tax calculation (inclusive/exclusive, country/region rules), manual payment, order fulfilment, 8 themes, page editor draft/preview/publish with version restore, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, email notifications with a D1 outbox and provider retries, hybrid bundled/remote plugins with iframe admin pages, short-lived plugin JWTs, HMAC service calls, remote payment adapters, local media uploads to R2 or jsDelivr with encrypted credentials, a scoped API-key admin CLI for agents, 105 workerd tests, 21 CLI Node tests, and 12 Playwright browser tests (13 including setup).
 
 Not yet verified or missing:
 - No live Stripe/PayPal Sandbox transaction has been run in this repository; provider APIs are mocked in tests. Sandbox credentials are still to be supplied.
@@ -225,6 +300,7 @@ See [docs/TEST_REPORT.md](docs/TEST_REPORT.md) for the exact verification matrix
 ## Documentation
 
 - [PRD](docs/PRD.md)
+- [CLI and agent access](docs/CLI.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Plugin development](docs/PLUGIN_DEVELOPMENT.md)
 - [Theme development](docs/THEME_DEVELOPMENT.md)

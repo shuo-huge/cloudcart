@@ -14,16 +14,17 @@ passing without its output.
 
 | Command | Result |
 |---|---|
-| `pnpm install` | dependencies installed (24 workspace projects) |
+| `pnpm install` | dependencies installed (26 workspace projects) |
 | `pnpm typecheck` (`tsc --noEmit`) | **passed**, no diagnostics |
-| `pnpm test` | **14 test files, 94 tests passed**, ~9 s |
+| `pnpm test` | **17 test files, 105 tests passed**, ~8 s |
+| `pnpm test:cli` | **6 test files, 21 tests passed**, ~0.4 s |
 | `pnpm build` | storefront + admin built; asset references regenerated |
-| `pnpm test:e2e` | **11 Playwright tests passed** (1 setup + 10 browser), ~24 s |
-| `wrangler deploy --dry-run --outdir .wrangler/dry` | **passed**; 23 asset files; Worker 1386.22 KiB / **258.01 KiB gzip**; D1 + ASSETS bindings resolved; no R2 binding (optional and not provisioned) |
+| `pnpm test:e2e` | **13 Playwright tests passed** (1 setup + 12 browser), ~31 s |
+| `wrangler deploy --dry-run --outdir .wrangler/dry` | **passed**; 31 asset files; Worker ~1387 KiB / **258 KiB gzip**; D1 + ASSETS bindings resolved; no R2 binding (optional and not provisioned) |
 
 Build output sizes:
 - storefront bundle: 5.08 KiB JS (1.85 KiB gzip) / 1.03 KiB CSS (0.53 KiB gzip);
-- admin bundle: 181.99 KiB JS (53.02 KiB gzip) / 23.02 KiB CSS (5.49 KiB gzip).
+- admin bundle: 196.35 KiB JS (57.28 KiB gzip) / 24.33 KiB CSS (5.74 KiB gzip).
 
 `node scripts/deploy.mjs --check` requires an authenticated Cloudflare account and was not run in
 this session.
@@ -33,7 +34,7 @@ this session.
 ## 2. Workerd / Vitest coverage
 
 ### `tests/health.test.ts` (3 tests)
-- `/api/health` returns 200, `database: "ok"`, version `0.3.0`, security header present.
+- `/api/health` returns 200, `database: "ok"`, version `0.5.0`, security header present.
 - `/api/setup/status` reports an uninstalled store on a fresh DB.
 - Unknown API route returns JSON 404.
 
@@ -122,14 +123,38 @@ this session.
 - Remote checkout redirect and verified webhook marks the order paid through `processPaymentEvent`.
 - A remote event for another payment method is rejected and leaves the order unpaid.
 
+### `tests/api-keys.test.ts` (5 tests)
+- Session-only key creation; token returned once; only hash stored; last-used tracking.
+- Bearer product reads/writes without cookies or CSRF; audit records `via:"api_key"`.
+- Resource scopes; read-only keys; session CSRF still enforced.
+- Session-only protection for key creation, password changes, plugins and logout.
+- Revoked/expired/invalid keys; wildcard vs business scopes; password change revokes keys.
+
+### `tests/content-cli-support.test.ts` (2 tests)
+- Page rename/delete, home-page protection.
+- Coupon detail returns product/category scope IDs.
+
+### `tests/media.test.ts` (4 tests)
+- No provider → 409/503; explicit unavailable provider rejected.
+- jsDelivr config encrypts the GitHub token (`v1.` ciphertext), never returns it, and uploads a PNG through a mocked GitHub Contents API to a commit-SHA CDN URL.
+- External URLs record `storage='external'`; fake R2 bucket validates key/metadata/`storage='r2'`.
+- API keys need `*` scope to change media storage settings.
+
+### CLI Node tests (`pnpm test:cli`, 21 tests)
+- Argument parsing, negation, repeated flags, unknown flags.
+- Config profile precedence, key masking, URL safety.
+- HTTP client auth headers, envelope/error mapping, dry-run, login cookies, generic API path guard.
+- Money conversion (USD/JPY/BHD) and rate conversion.
+- Manifest uniqueness, nested command resolution and runnable handlers.
+
 ---
 
 ## 3. Playwright browser coverage
 
 `pnpm test:e2e` builds the app, resets a dedicated local D1 directory (`.wrangler/e2e`), applies all
-five migrations, starts a local mock remote plugin on `127.0.0.1:8788`, boots `wrangler dev` on
-`127.0.0.1:8787` with the test-only insecure-origin flag, and seeds the store through the one-time
-setup token. Specs (9 files, 11 tests):
+seven migrations, starts a local mock remote plugin on `127.0.0.1:8788` and a local GitHub mock on
+`127.0.0.1:8789`, boots `wrangler dev` on `127.0.0.1:8787` with the test-only insecure-origin flag,
+and seeds the store through the one-time setup token. Specs (11 files, 13 tests):
 
 1. **setup** — creates the owner, seeds tax/shipping/product images/home page and saves storage state.
 2. **admin-auth** — signs in through the login form.
@@ -147,6 +172,15 @@ setup token. Specs (9 files, 11 tests):
 8. **themes** — opens the full preview modal and verifies the WebP atlas background.
 9. **checkout** — guest adds to cart, sees “Calculated at checkout”, completes a US manual-payment
    checkout, and sees `Sales tax $2.48` / total `$32.48` on the confirmation page.
+10. **media-upload** — uploads a local PNG through the jsDelivr provider (mock GitHub API), attaches it to a product, verifies the CDN-backed image, checks Settings and the Media library, and cleans up the product.
+11. **cli** — logs in through the CLI to create an API key, creates a product and attaches an image,
+    creates and publishes a blog page, verifies `/products/<slug>` and `/pages/<slug>`, lists orders,
+    and revokes the key with `auth logout`.
+
+README screenshots are generated separately by `e2e/screenshots.spec.ts` through
+`playwright.screenshots.config.ts`. That run seeds a demo catalog and checkout orders, then captures the
+admin in English and Simplified Chinese. It is excluded from the 13-test suite; regenerate the images with
+`pnpm screenshots`.
 
 The E2E suite discovered and verified two UI fixes made in this change:
 - SortableJS was initialising before the outline/media grid mounted, so drag never attached on first
@@ -162,8 +196,10 @@ The E2E suite discovered and verified two UI fixes made in this change:
   credentials or money movement were used. Sandbox accounts are still to be supplied.
 - **Live email provider delivery.** Resend and Cloudflare transports are mocked/unit-tested; no real
   message has been sent.
-- **R2 upload integration.** Upload validation logic exists, but the default deployment has no R2
-  binding and no multipart test was run.
+- **Real R2 upload integration.** The R2 provider is covered with a fake bucket object; this
+  deployment intentionally has no `MEDIA` binding, so a real multipart upload to R2 was not run.
+- **Real GitHub/jsDelivr upload.** jsDelivr uploads are tested against a local GitHub API mock; no
+  real GitHub PAT was used in CI.
 - **Concurrent checkout race stress.** Conditional stock updates and compensation are implemented and
   reviewed, but not stress-tested under parallel load.
 - **Cloudflare quota behaviour.** Cannot be simulated with free-tier account limits in tests.
@@ -202,6 +238,7 @@ pnpm test
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
+pnpm screenshots
 pnpm exec wrangler deploy --dry-run --outdir .wrangler/dry
 ```
 

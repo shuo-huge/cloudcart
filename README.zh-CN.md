@@ -4,7 +4,7 @@
 
 **免费、开源、插件化的电商系统，原生运行在 Cloudflare Workers 上。**
 
-一个 Worker · 一个 D1 数据库 · 图片支持外链 · R2 可选
+一个 Worker · 一个 D1 数据库 · 图片本地上传（R2/jsDelivr）· 外链可选
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/shuo-huge/cloudcart)
 
@@ -29,7 +29,7 @@
 | 痛点 | CloudCart 的做法 |
 |---|---|
 | **Shopify 式月费 + 付费插件** | 没有平台订阅费。运行在 Cloudflare Workers Free 上，你只需要付域名和支付渠道手续费。 |
-| **VPS、MySQL、Redis、SSL、备份** | 没有服务器要维护。D1 由 Cloudflare 托管，图片可使用公开 HTTPS 外链；需要文件上传时再选配 R2。 |
+| **VPS、MySQL、Redis、SSL、备份** | 没有服务器要维护。D1 由 Cloudflare 托管，图片可上传到 R2 或通过 jsDelivr 发布；外链仍可选。 |
 | **SaaS 锁定、多租户共享数据** | 每个商城都是你自己 Cloudflare 账户里的独立 Worker + D1；R2 可按需接入。数据、代码、域名都归你。 |
 | **重型 SSR 框架超出免费 CPU 限制** | Hono + Preact + 轻量字符串渲染，页面依然服务端渲染、SEO 可读。 |
 | **主题和页面编辑器贵且封闭** | 8 套结构不同的内置主题、三栏可视化编辑器、完整 Theme SDK，MIT 开源。 |
@@ -49,6 +49,20 @@
 | 主题 | 8 套内置 + SDK | 多为付费 | 免费/付费扩展 |
 | 可视化编辑器 | 内置 | 内置 | 第三方 |
 | 开源 | **MIT** | 否 | GPL |
+
+---
+
+## 后台截图
+
+以下截图来自运行中的 CloudCart 后台，使用演示商品数据和简体中文语言包。英文 README 展示相同页面的英文界面。
+
+| 仪表盘 | 商品目录 |
+| :---: | :---: |
+| <img src="docs/images/screenshots/zh/dashboard.jpg" alt="CloudCart 后台仪表盘：订单、销售额和库存" width="100%"> | <img src="docs/images/screenshots/zh/products.jpg" alt="CloudCart 商品目录：价格、库存和分类" width="100%"> |
+| **订单与履约** | **商品编辑与本地图片上传** |
+| <img src="docs/images/screenshots/zh/orders.jpg" alt="CloudCart 订单列表与支付、履约状态" width="100%"> | <img src="docs/images/screenshots/zh/product-media.jpg" alt="商品编辑器上传图片到 jsDelivr 或 R2" width="100%"> |
+| **可视化页面编辑器** | **媒体存储：R2 或 jsDelivr** |
+| <img src="docs/images/screenshots/zh/page-builder.jpg" alt="CloudCart 可视化页面编辑器与实时预览" width="100%"> | <img src="docs/images/screenshots/zh/settings-media.jpg" alt="CloudCart 媒体存储设置：R2 与 jsDelivr" width="100%"> |
 
 ---
 
@@ -102,7 +116,7 @@ pnpm run deploy:cloudflare -- --no-open         # 不自动打开浏览器
 
 ## 本地开发
 
-要求：Node.js 20+（CI 使用 24，`.nvmrc` 固定 22）、pnpm 10+（`packageManager` 固定 12.16.1）。
+要求：商城使用 Node.js 20+（CI 使用 24，`.nvmrc` 固定 22）、pnpm 10+（`packageManager` 固定 12.16.1）。文档站使用 Astro 6，需要 Node.js 22.12+。
 
 ```bash
 pnpm install
@@ -129,13 +143,71 @@ pnpm test:e2e
 
 ---
 
+## 文档站
+
+公开使用文档在 `apps/docs`，使用 Astro Starlight 构建，和商城 Worker 分开部署。
+
+```bash
+pnpm docs:dev       # 本地预览 http://localhost:4321
+pnpm docs:build     # 静态产物在 apps/docs/dist
+pnpm docs:deploy    # 构建并部署 cloudcart-docs Worker
+```
+
+`docs:deploy` 使用 `wrangler.docs.jsonc`，部署一个独立的静态资源 Worker：`cloudcart-docs`。也可以把 `apps/docs/dist` 通过 Cloudflare Pages 部署。
+
+部署到正式域名前设置 `DOCS_SITE_URL`（例如 `DOCS_SITE_URL=https://docs.example.com`），这样 canonical 和 sitemap 会使用正式域名。
+
+页面内容在 `apps/docs/src/content/docs/**/*.md`，左侧目录在 `apps/docs/astro.config.mjs`。
+
+品牌图标在 `brand/`。提交到仓库的 favicon / App icon 由其中的 SVG 母版生成；修改图标后运行 `pnpm icons` 重新生成。
+
+---
+
+## 管理 CLI（面向智能体）
+
+`apps/cli` 把后台 API 封装成零依赖的 Node CLI，Claude Code、Cursor、Codex、Gemini CLI 和脚本都可以不打开浏览器就完成商品上架、页面/博客发布、订单处理和营销配置。
+
+```bash
+# 首次登录：自动创建 API Key 并保存到用户目录
+pnpm cloudcart auth login --url https://your-store.example.com --email owner@example.com
+
+# 内容运营
+pnpm cloudcart products list --json
+pnpm cloudcart products create --name "帆布托特包" --price 25.00 --status active --image https://example.com/tote.jpg --json
+pnpm cloudcart blog create --title "上新说明" --slug launch-notes --text-file post.html --publish --json
+
+# 订单与营销
+pnpm cloudcart orders list --json
+pnpm cloudcart coupons create --code SAVE10 --type percent --value 10 --json
+
+# 智能体发现命令
+pnpm cloudcart capabilities --json
+pnpm cloudcart schema product
+```
+
+非交互智能体可以直接设置 `CLOUDCART_URL` 和 `CLOUDCART_API_KEY`。写操作加 `--json` 获得稳定输出，先跑 `--dry-run`，删除类操作显式加 `--yes`。API Key 按资源限权、在 D1 中只存哈希、可通过 `cloudcart auth logout` 撤销。
+
+商品图片可以在后台或 CLI 直接上传。在 **Settings → Media storage** 配置默认存储：
+
+- **R2**：部署存在 `MEDIA` binding 时可用
+- **jsDelivr**：使用 fine-grained PAT（Contents: Read and write）发布到公开 GitHub 仓库，Token 加密保存
+
+```bash
+pnpm cloudcart media upload ./photo.jpg --storage jsdelivr --json
+pnpm cloudcart products images attach PRODUCT_ID --image-url https://example.com/photo.jpg --storage jsdelivr --json
+```
+
+外部 HTTPS 图片仍可通过后台高级面板或 CLI 的 `--external` 使用。`publish:jsdelivr` 手动发布脚本保留。jsDelivr 定位是开源项目 CDN，商业商品目录请先确认其条款；生产环境更建议 R2。
+
+博客复用内容页：每篇文章发布到 `/pages/<slug>`，正文是一个 rich-text section。CloudCart 没有独立的 posts 表、`/blog` 列表或 RSS。完整命令见 [`docs/CLI.md`](docs/CLI.md)。
+
 ## 功能
 
 ### 商城前台
 首页、分类、搜索、商品详情、购物车、结账、订单确认、内容页全部服务端渲染。内置 Meta 标签、Canonical、Open Graph、Twitter Card、商品/面包屑/网站 JSON-LD、`sitemap.xml`、`robots.txt`、301 重定向。不依赖 JavaScript 也能被抓取商品名称和描述。
 
 ### 后台
-Dashboard、商品与规格、分类、图片外链（R2 文件上传可选）、可拖拽排序的商品图片、订单、客户、优惠券、配送区域与运费、税率、主题、支持版本回滚的可视化页面编辑器、插件、邮件通知与发件箱、支付配置、媒体库、店铺设置、SEO 重定向、审计日志、资源用量估算。
+Dashboard、商品与规格、分类、本地上传到 R2 或 jsDelivr（外链为高级选项）、可拖拽排序的商品图片、订单、客户、优惠券、配送区域与运费、税率、主题、支持版本回滚的可视化页面编辑器、插件、邮件通知与发件箱、支付配置、媒体库、店铺设置、SEO 重定向、审计日志、资源用量估算。
 
 ### 交易核心
 每次结账都在服务端重新校验价格、库存、优惠、运费和税费。金额使用整数最小货币单位，保存订单快照，库存使用条件更新与补偿机制，订单状态机显式约束，人工确认收款记录管理员和时间，支持手动填写物流单号。税费支持国家/地区税率规则、默认税率，以及含税价/不含税价；税费计入订单总额并自动同步到支付金额。
@@ -175,7 +247,7 @@ PBKDF2 密码、HMAC Session、CSRF 双提交、登录限流、全部预编译 S
        ├─ Workers Static Assets     /static/*, /static/admin-ui/*
        └─ Worker (Hono)             /, /api/*, /api/plugin/v1/*, /admin, /media/*, /webhooks/*
             ├─ D1 (SQLite)          商品、订单、页面、设置、会话…
-            ├─ 可选 R2               直接上传图片（不启用时使用 HTTPS 图片外链）
+            ├─ 可选 R2               直接上传图片（也可用 jsDelivr 或 HTTPS 外链）
             └─ 远程插件              插件作者服务器上的签名 HTTPS API + iframe 后台
 ```
 
@@ -183,6 +255,8 @@ PBKDF2 密码、HMAC Session、CSRF 双提交、登录限流、全部预编译 S
 apps/worker       Hono API、SSR、Webhook、媒体、后台壳
 apps/admin        Preact 后台 SPA 与页面编辑器
 apps/storefront   小型前台脚本（购物车、订阅）
+apps/docs         Astro Starlight 公开文档站
+apps/cli          面向智能体的管理 CLI（零依赖）
 packages/core     商品、订单、支付、页面、主题、SEO 等业务逻辑
 packages/database D1 封装、行类型、资源保护
 packages/security Web Crypto、会话、密钥加密、消毒
@@ -191,8 +265,9 @@ packages/plugin-sdk, theme-sdk, ui
 plugins/          admin/i18n、payments/{manual,stripe,paypal}、notifications/email
 examples/         remote-plugin 远程插件示例
 themes/           8 套内置主题
-migrations/       5 个 D1 迁移
-scripts/          部署 CLI 与资源准备
+brand/            CloudCart 图标母版与生成后的 favicon/App icon
+migrations/       7 个 D1 迁移
+scripts/          部署 CLI、图标生成、jsDelivr 图片发布
 tests/            workerd 集成测试
 docs/             架构、插件、主题、支付、部署、安全、测试文档
 ```
@@ -203,9 +278,9 @@ docs/             架构、插件、主题、支付、部署、安全、测试�
 
 ## 项目状态
 
-**v0.3.0 — 功能可用，但尚未宣称 1.0。** 已实现和未实现的事项都明确列出。
+**v0.5.0 — 功能可用，但尚未宣称 1.0。** 已实现和未实现的事项都明确列出。
 
-已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、内置/远程混合插件与 iframe 后台、短期插件 JWT、HMAC 服务调用、远程支付适配器、94 个 workerd 测试、10 个 Playwright 浏览器测试（含 setup 共 11 个）。
+已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、内置/远程混合插件与 iframe 后台、短期插件 JWT、HMAC 服务调用、远程支付适配器、R2/jsDelivr 本地上传与加密凭据、面向智能体的 API Key 管理 CLI、105 个 workerd 测试、21 个 CLI Node 测试、12 个 Playwright 浏览器测试（含 setup 共 13 个）。
 
 未验证或尚未完成：
 - 仓库内**没有对真实 Stripe/PayPal Sandbox 发起过交易**；测试中支付接口使用确定性 mock，Sandbox 账号待补充。
@@ -224,6 +299,7 @@ docs/             架构、插件、主题、支付、部署、安全、测试�
 ## 文档
 
 - [产品需求 PRD](docs/PRD.md)
+- [CLI 与智能体](docs/CLI.md)
 - [架构](docs/ARCHITECTURE.md)
 - [插件开发](docs/PLUGIN_DEVELOPMENT.md)
 - [主题开发](docs/THEME_DEVELOPMENT.md)

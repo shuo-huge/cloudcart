@@ -42,6 +42,10 @@ export function renderDocument(options: DocumentOptions): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeAttr(description)}">
 <link rel="canonical" href="${escapeAttr(options.canonicalUrl)}">

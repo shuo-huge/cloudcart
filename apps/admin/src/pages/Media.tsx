@@ -1,19 +1,17 @@
 import { useState } from "preact/hooks";
 import { adminGet, adminSend } from "../api";
 import { ErrorBox, Loading, Pagination, toast, useAsync } from "../components";
-
-interface MediaRow {
-  id: string;
-  r2_key: string;
-  filename: string;
-  content_type: string;
-  size_bytes: number;
-  alt: string;
-  created_at: string;
-}
+import { MediaUploader } from "../media-uploader";
+import type { MediaAsset } from "../types";
 
 function mediaUrl(key: string): string {
   return /^https:\/\//i.test(key) ? key : `/media/${key}`;
+}
+
+function storageLabel(storage: string): string {
+  if (storage === "jsdelivr") return "jsDelivr";
+  if (storage === "r2") return "R2";
+  return "External";
 }
 
 export function MediaPage() {
@@ -21,7 +19,7 @@ export function MediaPage() {
   const [externalUrl, setExternalUrl] = useState("");
   const [addingUrl, setAddingUrl] = useState(false);
   const { data, loading, error, reload } = useAsync(
-    () => adminGet<{ items: MediaRow[]; total: number }>(`/media?page=${page}&perPage=24`),
+    () => adminGet<{ items: MediaAsset[]; total: number }>(`/media?page=${page}&perPage=24`),
     [page],
   );
 
@@ -41,7 +39,7 @@ export function MediaPage() {
     }
   }
 
-  async function remove(media: MediaRow) {
+  async function remove(media: MediaAsset) {
     if (!window.confirm(`Delete ${media.filename}? Products using it will lose the image.`)) return;
     try {
       await adminSend(`/media/${media.id}`, "DELETE");
@@ -52,7 +50,7 @@ export function MediaPage() {
     }
   }
 
-  async function copy(media: MediaRow) {
+  async function copy(media: MediaAsset) {
     try {
       const url = /^https:\/\//i.test(media.r2_key)
         ? media.r2_key
@@ -72,25 +70,34 @@ export function MediaPage() {
       <header class="page-header">
         <div>
           <h1>Media</h1>
-          <p class="muted">Add public HTTPS image URLs now. File uploads become available if you enable R2 later.</p>
+          <p class="muted">Upload images for products and page content. Choose R2 or jsDelivr for each upload.</p>
         </div>
-
       </header>
       <section class="card">
-        <form class="toolbar" onSubmit={addExternalUrl}>
-          <input
-            type="url"
-            placeholder="https://example.com/product-image.jpg"
-            value={externalUrl}
-            onInput={(event) => setExternalUrl((event.target as HTMLInputElement).value)}
-            aria-label="External image URL"
-          />
-          <button type="submit" class="button" disabled={addingUrl || !externalUrl.trim()}>
-            {addingUrl ? "Adding…" : "Add image URL"}
-          </button>
-        </form>
+        <MediaUploader
+          label="Upload image"
+          onUploaded={async () => {
+            await reload();
+          }}
+        />
+        <details class="media-advanced">
+          <summary>Advanced: external image URL</summary>
+          <form class="toolbar" onSubmit={addExternalUrl}>
+            <input
+              type="url"
+              placeholder="https://example.com/product-image.jpg"
+              value={externalUrl}
+              onInput={(event) => setExternalUrl((event.target as HTMLInputElement).value)}
+              aria-label="External image URL"
+            />
+            <button type="submit" class="button" disabled={addingUrl || !externalUrl.trim()}>
+              {addingUrl ? "Adding…" : "Add image URL"}
+            </button>
+          </form>
+          <p class="muted small">Register an existing public HTTPS image without storing a copy.</p>
+        </details>
         {(data?.items ?? []).length === 0 ? (
-          <div class="empty-state"><h3>No media yet</h3><p>Add a public HTTPS image URL to use it in products and page content.</p></div>
+          <div class="empty-state"><h3>No media yet</h3><p>Upload an image or add a public HTTPS URL to use it in products and page content.</p></div>
         ) : (
           <div class="media-library">
             {(data?.items ?? []).map((media) => (
@@ -98,7 +105,11 @@ export function MediaPage() {
                 <img src={mediaUrl(media.r2_key)} alt={media.alt} loading="lazy" />
                 <figcaption>
                   <span class="media-name" title={media.filename}>{media.filename}</span>
-                  <span class="muted small">{media.content_type === "image/external" ? "External URL" : `${Math.round(media.size_bytes / 1024)} KB`}</span>
+                  <span class="muted small">
+                    <span class={`storage-badge storage-badge--${media.storage || "external"}`}>{storageLabel(media.storage || "external")}</span>
+                    {" · "}
+                    {media.content_type === "image/external" ? "External URL" : `${Math.round(media.size_bytes / 1024)} KB`}
+                  </span>
                   <div class="row-actions">
                     <button type="button" class="link-button" onClick={() => copy(media)}>Copy URL</button>
                     <button type="button" class="link-button link-button--danger" onClick={() => remove(media)}>Delete</button>

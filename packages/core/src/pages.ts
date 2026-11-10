@@ -221,6 +221,33 @@ export async function restorePageVersion(
   return snapshot;
 }
 
+export async function updatePageTitle(db: Database, slug: string, title: string): Promise<void> {
+  const trimmed = title.trim();
+  if (trimmed.length < 1 || trimmed.length > 140) {
+    throw new HttpError(400, "invalid_title", "Enter a page title between 1 and 140 characters.");
+  }
+  if (slug === "home") {
+    throw new HttpError(400, "invalid_page", "The home page title cannot be changed here.");
+  }
+  const result = await db.run(
+    "UPDATE pages SET title = ?, updated_at = ? WHERE slug = ? AND type = 'content'",
+    [trimmed, nowIso(), slug],
+  );
+  if (!result.meta.changes) throw new HttpError(404, "page_not_found", "Page not found.");
+}
+
+export async function deleteContentPage(db: Database, slug: string): Promise<void> {
+  if (slug === "home") {
+    throw new HttpError(400, "invalid_page", "The home page cannot be deleted.");
+  }
+  const page = await getPage(db, slug);
+  if (!page || page.type !== "content") throw new HttpError(404, "page_not_found", "Page not found.");
+  await db.batch([
+    db.prepare("DELETE FROM page_versions WHERE page_id = ?", [page.id]),
+    db.prepare("DELETE FROM pages WHERE id = ?", [page.id]),
+  ]);
+}
+
 export async function createContentPage(db: Database, slug: string, title: string): Promise<string> {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug === "home" || slug.length > 80) {
     throw new HttpError(400, "invalid_slug", "Use a lowercase URL slug with letters, numbers and hyphens.");

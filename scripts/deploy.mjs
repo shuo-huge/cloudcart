@@ -304,16 +304,36 @@ async function main() {
   const urlMatch = deploy.stdout.match(/https:\/\/[^\s"'<>]+\.workers\.dev/);
   const workerUrl = urlMatch ? urlMatch[0] : `https://${workerName}.workers.dev`;
 
-  let installed = false;
-  try {
-    const statusResponse = await fetch(`${workerUrl}/api/setup/status`, { redirect: "error" });
-    if (statusResponse.ok) {
-      const status = await statusResponse.json();
-      installed = status.installed === true;
+  // Prefer the database over an HTTP probe: workers.dev can be blocked or
+  // intercepted on some networks, which previously made an installed store
+  // look uninstalled and caused an unnecessary SETUP_TOKEN rotation.
+  let installed = null;
+  const installState = wrangler(
+    ["d1", "execute", "DB", "--remote", "--json", "--command=\"SELECT installed_at FROM installation_state WHERE id = 1\""],
+    { capture: true, allowFailure: true },
+  );
+  if (installState.status === 0) {
+    try {
+      const parsed = JSON.parse(installState.stdout);
+      const rows = Array.isArray(parsed)
+        ? parsed.flatMap((entry) => (Array.isArray(entry?.results) ? entry.results : []))
+        : [];
+      installed = rows.some((row) => Boolean(row?.installed_at));
+    } catch {
+      installed = null;
     }
-  } catch {
-    // If the status endpoint is temporarily unavailable, preserve the safe
-    // first-install path and print a fresh one-time link.
+  }
+  if (installed === null) {
+    try {
+      const statusResponse = await fetch(`${workerUrl}/api/setup/status`, { redirect: "error" });
+      if (statusResponse.ok) {
+        const status = await statusResponse.json();
+        installed = status.installed === true;
+      }
+    } catch {
+      // Keep null: reuse any existing setup token instead of rotating it when
+      // the installation state cannot be confirmed.
+    }
   }
 
   step("Configuring Worker secrets");
@@ -330,6 +350,9 @@ async function main() {
     console.log("  APP_MASTER_KEY generated and configured automatically.");
   }
 
+  if (installed === null) {
+    console.log("  Could not confirm whether the store is installed — keeping any existing setup token.");
+  }
   let setupToken = state.setupToken || null;
   if (installed) {
     setupToken = null;
