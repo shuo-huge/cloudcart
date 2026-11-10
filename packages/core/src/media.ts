@@ -41,12 +41,19 @@ export function mediaUrl(r2Key: string): string {
   return /^https:\/\//i.test(r2Key) ? r2Key : `/media/${r2Key}`;
 }
 
-export async function storeMedia(
-  db: Database,
-  bucket: R2Bucket,
-  file: File,
-  uploadedBy: string | null,
-): Promise<MediaRow> {
+export interface ValidatedImage {
+  bytes: Uint8Array;
+  extension: string;
+  contentType: string;
+  filename: string;
+  sizeBytes: number;
+}
+
+/**
+ * Shared validation for every provider. The bytes are read once and reused by
+ * R2 or the GitHub/jsDelivr uploader.
+ */
+export async function prepareImageUpload(file: File): Promise<ValidatedImage> {
   if (file.size <= 0) throw new HttpError(400, "empty_file", "The uploaded file is empty.");
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new HttpError(413, "file_too_large", "Images must be 5 MB or smaller.");
@@ -65,44 +72,103 @@ export async function storeMedia(
   if (!allowed.magic(bytes)) {
     throw new HttpError(415, "content_mismatch", "The file does not look like a valid image of the declared type.");
   }
+  return {
+    bytes,
+    extension: allowed.ext,
+    contentType: declaredType,
+    filename,
+    sizeBytes: file.size,
+  };
+}
 
-  const id = newId("med");
+export function mediaObjectKey(id: string, extension: string, basePath = "media"): string {
   const date = new Date();
-  const key = `media/${date.getUTCFullYear()}/${String(date.getUTCMonth() + 1).padStart(2, "0")}/${id}.${allowed.ext}`;
-  await bucket.put(key, bytes, {
-    httpMetadata: {
-      contentType: declaredType,
-      cacheControl: "public, max-age=31536000, immutable",
-    },
-    customMetadata: {
-      originalName: filename.slice(0, 200),
-    },
-  });
+  return `${basePath}/${date.getUTCFullYear()}/${String(date.getUTCMonth() + 1).padStart(2, "0")}/${id}.${extension}`;
+}
 
+export interface InsertMediaInput {
+  id?: string;
+  key: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  storage: MediaRow["storage"];
+  uploadedBy: string | null;
+  alt?: string;
+}
+
+export async function insertMediaRow(db: Database, input: InsertMediaInput): Promise<MediaRow> {
+  const id = input.id || newId("med");
   const now = nowIso();
+  const filename = input.filename.slice(0, 200);
+  const alt = (input.alt || "").slice(0, 300);
   await db.run(
-    `INSERT INTO media (id, r2_key, filename, content_type, size_bytes, width, height, alt, uploaded_by, created_at)
-     VALUES (?, ?, ?, ?, ?, NULL, NULL, '', ?, ?)`,
-    [id, key, filename.slice(0, 200), declaredType, file.size, uploadedBy, now],
+    `INSERT INTO media (id, r2_key, filename, content_type, size_bytes, width, height, alt, uploaded_by, storage, created_at)
+     VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)`,
+    [id, input.key, filename, input.contentType, input.sizeBytes, alt, input.uploadedBy, input.storage, now],
   );
   return {
     id,
-    r2_key: key,
-    filename: filename.slice(0, 200),
-    content_type: declaredType,
-    size_bytes: file.size,
+    r2_key: input.key,
+    filename,
+    content_type: input.contentType,
+    size_bytes: input.sizeBytes,
     width: null,
     height: null,
-    alt: "",
-    uploaded_by: uploadedBy,
+    alt,
+    uploaded_by: input.uploadedBy,
+    storage: input.storage,
     created_at: now,
   };
 }
 
+export async function storeR2Media(
+  db: Database,
+  bucket: R2Bucket,
+  image: ValidatedImage,
+  uploadedBy: string | null,
+  alt = "",
+): Promise<MediaRow> {
+  const id = newId("med");
+  const key = mediaObjectKey(id, image.extension);
+  await bucket.put(key, image.bytes, {
+    httpMetadata: {
+      contentType: image.contentType,
+      cacheControl: "public, max-age=31536000, immutable",
+    },
+    customMetadata: {
+      originalName: image.filename.slice(0, 200),
+    },
+  });
+  return insertMediaRow(db, {
+    id,
+    key,
+    filename: image.filename,
+    contentType: image.contentType,
+    sizeBytes: image.sizeBytes,
+    storage: "r2",
+    uploadedBy,
+    alt,
+  });
+}
+
+/** Backwards-compatible R2 helper. New code should call prepareImageUpload + storeR2Media. */
+export async function storeMedia(
+  db: Database,
+  bucket: R2Bucket,
+  file: File,
+  uploadedBy: string | null,
+): Promise<MediaRow> {
+  return storeR2Media(db, bucket, await prepareImageUpload(file), uploadedBy);
+}
+
 export async function deleteMedia(db: Database, bucket: R2Bucket | undefined, id: string): Promise<void> {
-  const row = await db.first<{ r2_key: string }>("SELECT r2_key FROM media WHERE id = ?", [id]);
+  const row = await db.first<{ r2_key: string; storage: MediaRow["storage"] }>(
+    "SELECT r2_key, storage FROM media WHERE id = ?",
+    [id],
+  );
   if (!row) throw new HttpError(404, "media_not_found", "Media not found.");
-  if (bucket && !/^https:\/\//i.test(row.r2_key)) await bucket.delete(row.r2_key);
+  if (bucket && row.storage === "r2" && !/^https:\/\//i.test(row.r2_key)) await bucket.delete(row.r2_key);
   await db.run("DELETE FROM product_images WHERE r2_key = ?", [row.r2_key]);
   await db.run("DELETE FROM media WHERE id = ?", [id]);
 }

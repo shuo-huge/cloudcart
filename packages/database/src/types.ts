@@ -23,6 +23,18 @@ export interface AdminSessionRow {
   revoked_at: string | null;
 }
 
+export interface AdminApiKeyRow {
+  id: string;
+  admin_id: string;
+  name: string;
+  token_hash: string;
+  scopes_json: string;
+  created_at: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+  revoked_at: string | null;
+}
+
 export interface SettingRow {
   key: string;
   value: string;
@@ -374,6 +386,9 @@ export interface PageVersionRow {
   created_at: string;
 }
 
+export type MediaStorage = "r2" | "jsdelivr" | "external";
+export type MediaStorageProvider = "r2" | "jsdelivr";
+
 export interface MediaRow {
   id: string;
   r2_key: string;
@@ -384,7 +399,20 @@ export interface MediaRow {
   height: number | null;
   alt: string;
   uploaded_by: string | null;
+  storage: MediaStorage;
   created_at: string;
+}
+
+export interface MediaStorageConfigRow {
+  id: number;
+  default_provider: MediaStorageProvider;
+  jsdelivr_owner: string | null;
+  jsdelivr_repo: string | null;
+  jsdelivr_branch: string;
+  jsdelivr_path: string;
+  jsdelivr_token_encrypted: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface TaxRateRow {

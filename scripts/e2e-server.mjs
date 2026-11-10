@@ -16,6 +16,7 @@ import { spawn, spawnSync } from "node:child_process";
 const root = path.resolve(import.meta.dirname, "..");
 const port = Number(process.env.E2E_PORT || 8787);
 const pluginPort = Number(process.env.E2E_PLUGIN_PORT || 8788);
+const githubPort = Number(process.env.E2E_GITHUB_PORT || 8789);
 const pluginSecret = "e2e-remote-plugin-secret-123456";
 const host = "127.0.0.1";
 const persistTo = path.join(root, ".wrangler", "e2e");
@@ -110,6 +111,7 @@ async function main() {
   assertBuilt();
   await assertPortFree(port);
   await assertPortFree(pluginPort);
+  await assertPortFree(githubPort);
   ensureSecrets();
 
   const pluginServer = spawn(process.execPath, [path.join(root, "e2e", "mock-remote-plugin.mjs")], {
@@ -123,6 +125,16 @@ async function main() {
   });
   await waitForUrl(`http://${host}:${pluginPort}/cloudcart-plugin.json`);
 
+  const githubServer = spawn(process.execPath, [path.join(root, "e2e", "mock-github.mjs")], {
+    cwd: root,
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      E2E_GITHUB_PORT: String(githubPort),
+    },
+  });
+  await waitForUrl(`http://${host}:${githubPort}/repos/acme/media`);
+
   fs.rmSync(persistTo, { recursive: true, force: true });
 
   const migration = spawnSync(
@@ -132,6 +144,7 @@ async function main() {
   );
   if (migration.status !== 0) {
     if (!pluginServer.killed) pluginServer.kill();
+    if (!githubServer.killed) githubServer.kill();
     fail("Local D1 migrations failed.");
   }
 
@@ -145,6 +158,7 @@ async function main() {
       "--persist-to", persistTo,
       "--var", "APP_ENV:e2e",
       "--var", "PLUGIN_ALLOW_INSECURE_ORIGINS:1",
+      "--var", `MEDIA_JSDELIVR_API_BASE:http://${host}:${githubPort}`,
     ],
     { cwd: root, stdio: "inherit", env: { ...process.env, CI: "1" }, shell: process.platform === "win32" },
   );
@@ -152,12 +166,14 @@ async function main() {
   const stop = () => {
     if (!child.killed) child.kill();
     if (!pluginServer.killed) pluginServer.kill();
+    if (!githubServer.killed) githubServer.kill();
     process.exit(0);
   };
   process.on("SIGINT", stop);
   process.on("SIGTERM", stop);
   child.on("exit", (code) => {
     if (!pluginServer.killed) pluginServer.kill();
+    if (!githubServer.killed) githubServer.kill();
     process.exit(code ?? 0);
   });
 }

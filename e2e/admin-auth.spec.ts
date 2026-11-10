@@ -11,5 +11,5 @@ test("owner can sign in to the admin", async ({ page }) => {
 
   await expect(page.locator(".sidebar-link").first()).toBeVisible();
   await expect(page.locator(".sidebar-link", { hasText: "Dashboard" })).toBeVisible();
-  await expect(page.locator(".topbar-name")).toContainText("E2E Owner");
+  await expect(page.locator(".topbar-name")).toContainText("Avery Chen");
 });

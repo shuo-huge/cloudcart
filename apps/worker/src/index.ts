@@ -7,7 +7,9 @@ import type { AppContext } from "./env";
 import { CLOUDCART_VERSION } from "./env";
 import { adminAuth } from "./middleware";
 import { adminRoutes } from "./routes/admin";
+import { apiKeyRoutes } from "./routes/api-keys";
 import { authRoutes, serverSetupPage, serverSetupSubmit } from "./routes/auth";
+import { capabilityRoutes } from "./routes/capabilities";
 import { remotePluginRoutes } from "./routes/remote-plugins";
 import { pluginApiAuth } from "./plugin-api-auth";
 import { pluginApiRoutes } from "./routes/plugin-api";
@@ -74,6 +76,8 @@ app.post("/setup", (c) => serverSetupSubmit(c));
 /* Admin API (login/setup/status are exempt inside the middleware). */
 app.use("/api/admin/*", adminAuth);
 app.route("/api/admin", authRoutes);
+app.route("/api/admin", apiKeyRoutes);
+app.route("/api/admin", capabilityRoutes);
 app.route("/api/admin", remotePluginRoutes);
 app.route("/api/admin", adminRoutes);
 

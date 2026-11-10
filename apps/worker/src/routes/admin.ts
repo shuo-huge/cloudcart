@@ -23,6 +23,7 @@ import {
   deleteZone,
   ensureDefaultContentPages,
   getAdminProduct,
+  getCouponDetail,
   getCustomer,
   getDashboardStats,
   getOrderDetail,
@@ -61,7 +62,15 @@ import {
   shippingZoneInputSchema,
   taxRateInputSchema,
   updateTaxRate,
-  storeMedia,
+  getMediaStorageStatus,
+  loadMediaStorageConfig,
+  prepareImageUpload,
+  resolveMediaProvider,
+  saveMediaStorageConfig,
+  storeJsDelivrMedia,
+  storeR2Media,
+  testJsDelivrConnection,
+  testR2Storage,
   validatePageDocument,
   Storefront,
   renderDocument,
@@ -82,6 +91,9 @@ import {
   getPageVersion,
   restorePageVersion,
   listAuditLogs,
+  revokeAllApiKeysForAdmin,
+  updatePageTitle,
+  deleteContentPage,
   writeAuditLog,
 } from "@cloudcart/core";
 import { FREE_TIER_LIMITS, ResourceGuard } from "@cloudcart/database";
@@ -147,14 +159,26 @@ async function audit(
   entityId: string | null,
   details?: Record<string, unknown>,
 ): Promise<void> {
+  const apiKeyId = c.get("apiKeyId");
   await writeAuditLog(db(c), {
     adminId: c.get("adminId"),
     action,
     entityType,
     entityId,
-    details,
+    details: apiKeyId ? { ...(details ?? {}), via: "api_key", apiKeyId } : details,
     ip: c.req.header("cf-connecting-ip") ?? null,
   });
+}
+
+/**
+ * E2E/dev-only GitHub API override. Production always uses api.github.com.
+ * The value must be a loopback HTTP origin; anything else is ignored.
+ */
+function jsdelivrApiBase(env: AppContext["Bindings"]): string | undefined {
+  const value = env.MEDIA_JSDELIVR_API_BASE;
+  if (!value) return undefined;
+  if (!["development", "test", "e2e"].includes(env.APP_ENV || "")) return undefined;
+  return /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(value) ? value : undefined;
 }
 
 function fail(c: Context<AppContext>, error: unknown) {
@@ -386,35 +410,121 @@ adminRoutes.get("/media", async (c) => {
   }
 });
 
+adminRoutes.get("/media/storage", async (c) => {
+  try {
+    const status = await getMediaStorageStatus(db(c), Boolean(c.env.MEDIA), c.env.APP_MASTER_KEY);
+    return c.json({ ok: true, data: status });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.put("/media/storage", async (c) => {
+  try {
+    const body = parse(z.object({
+      defaultProvider: z.enum(["r2", "jsdelivr"]).optional(),
+      jsdelivr: z.object({
+        owner: z.string().max(100).optional(),
+        repo: z.string().max(100).optional(),
+        branch: z.string().max(200).optional(),
+        path: z.string().max(300).optional(),
+        token: z.string().max(4096).optional(),
+        clearToken: z.boolean().optional(),
+      }).optional(),
+    }), await readJson(c));
+    await saveMediaStorageConfig(db(c), c.env.APP_MASTER_KEY, body);
+    const status = await getMediaStorageStatus(db(c), Boolean(c.env.MEDIA), c.env.APP_MASTER_KEY);
+    await audit(c, "media.storage_updated", "media_storage", null, {
+      defaultProvider: status.defaultProvider,
+      jsdelivrOwner: status.providers.jsdelivr.owner,
+      jsdelivrRepo: status.providers.jsdelivr.repo,
+      jsdelivrBranch: status.providers.jsdelivr.branch,
+      jsdelivrPath: status.providers.jsdelivr.path,
+      tokenConfigured: status.providers.jsdelivr.tokenConfigured,
+    });
+    return c.json({ ok: true, data: status });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/media/storage/test", async (c) => {
+  try {
+    const body = parse(z.object({
+      provider: z.enum(["r2", "jsdelivr"]).optional(),
+    }), await readJson(c));
+    const status = await getMediaStorageStatus(db(c), Boolean(c.env.MEDIA), c.env.APP_MASTER_KEY);
+    const provider = body.provider || status.effectiveDefault;
+    let result;
+    if (provider === "r2") {
+      result = await testR2Storage(c.env.MEDIA);
+    } else {
+      const config = await loadMediaStorageConfig(db(c), c.env.APP_MASTER_KEY);
+      try {
+        result = await testJsDelivrConnection(config, { apiBase: jsdelivrApiBase(c.env) });
+      } catch (error) {
+        result = {
+          ok: false,
+          message: error instanceof Error ? error.message : "jsDelivr connection test failed.",
+          checks: { tokenValid: false, repoAccessible: false, branchExists: false },
+        };
+      }
+    }
+    await audit(c, "media.storage_tested", "media_storage", null, { provider, ok: result.ok });
+    return c.json({ ok: true, data: result });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
 adminRoutes.post("/media", async (c) => {
   try {
-    const bucket = c.env.MEDIA;
-    if (!bucket) {
-      throw new HttpError(503, "uploads_disabled", "File uploads are unavailable until R2 is enabled. You can add an HTTPS image URL instead.");
-    }
     const form = await c.req.raw.formData();
     const file = form.get("file");
     if (!(file instanceof File)) throw new HttpError(400, "file_required", "Attach an image file.");
-    // Local safety guard: R2 Free allows 10 GB-month. Stop uploads at 80% of
-    // that budget instead of silently consuming paid storage.
-    const usage = await db(c).first<{ bytes: number }>("SELECT COALESCE(SUM(size_bytes), 0) AS bytes FROM media");
-    const used = Number(usage?.bytes ?? 0);
-    const guard = 8 * 1024 * 1024 * 1024;
-    if (used + file.size > guard) {
-      throw new HttpError(
-        507,
-        "storage_guard",
-        "The local image-storage safety threshold is reached. Delete unused media or raise the threshold deliberately; CloudCart never upgrades your plan automatically.",
+    const image = await prepareImageUpload(file);
+    const alt = String(form.get("alt") ?? "").slice(0, 300);
+    const status = await getMediaStorageStatus(db(c), Boolean(c.env.MEDIA), c.env.APP_MASTER_KEY);
+    const requested = form.get("storage");
+    const provider = resolveMediaProvider(typeof requested === "string" ? requested : null, status);
+
+    let media;
+    if (provider === "r2") {
+      const bucket = c.env.MEDIA;
+      if (!bucket) throw new HttpError(409, "storage_unavailable", "R2 is not available in this deployment.");
+      // Local safety guard: R2 Free allows 10 GB-month. Stop uploads at 80% of
+      // that budget instead of silently consuming paid storage.
+      const usage = await db(c).first<{ bytes: number }>(
+        "SELECT COALESCE(SUM(size_bytes), 0) AS bytes FROM media WHERE storage = 'r2'",
+      );
+      const used = Number(usage?.bytes ?? 0);
+      const guard = 8 * 1024 * 1024 * 1024;
+      if (used + image.sizeBytes > guard) {
+        throw new HttpError(
+          507,
+          "storage_guard",
+          "The local image-storage safety threshold is reached. Delete unused media or raise the threshold deliberately; CloudCart never upgrades your plan automatically.",
+        );
+      }
+      media = await storeR2Media(db(c), bucket, image, c.get("adminId"), alt);
+      await new ResourceGuard(db(c)).record({ r2ClassA: 1 });
+    } else {
+      const config = await loadMediaStorageConfig(db(c), c.env.APP_MASTER_KEY);
+      media = await storeJsDelivrMedia(
+        db(c),
+        config,
+        image,
+        c.get("adminId"),
+        alt,
+        { apiBase: jsdelivrApiBase(c.env) },
       );
     }
-    const alt = String(form.get("alt") ?? "");
-    const media = await storeMedia(db(c), bucket, file, c.get("adminId"));
-    if (alt) {
-      await db(c).run("UPDATE media SET alt = ? WHERE id = ?", [alt.slice(0, 300), media.id]);
-      media.alt = alt;
-    }
-    await new ResourceGuard(db(c)).record({ r2ClassA: 1 });
-    await audit(c, "media.uploaded", "media", media.id, { filename: media.filename, size: media.size_bytes });
+
+    await audit(c, "media.uploaded", "media", media.id, {
+      filename: media.filename,
+      size: media.size_bytes,
+      storage: media.storage,
+    });
     return c.json({ ok: true, data: media }, 201);
   } catch (error) {
     return fail(c, error);
@@ -447,12 +557,24 @@ adminRoutes.post("/media/external", async (c) => {
     const filename = decodeURIComponent(imageUrl.pathname.split("/").pop() || imageUrl.hostname).slice(0, 200);
     const now = nowIso();
     await database.run(
-      `INSERT INTO media (id, r2_key, filename, content_type, size_bytes, width, height, alt, uploaded_by, created_at)
-       VALUES (?, ?, ?, 'image/external', 0, NULL, NULL, ?, ?, ?)`,
+      `INSERT INTO media (id, r2_key, filename, content_type, size_bytes, width, height, alt, uploaded_by, storage, created_at)
+       VALUES (?, ?, ?, 'image/external', 0, NULL, NULL, ?, ?, 'external', ?)`,
       [id, normalizedUrl, filename, body.alt, c.get("adminId"), now],
     );
     await audit(c, "media.external_added", "media", id, { host: imageUrl.hostname });
-    return c.json({ ok: true, data: { id, r2_key: normalizedUrl, filename, content_type: "image/external", size_bytes: 0, alt: body.alt, created_at: now } }, 201);
+    return c.json({
+      ok: true,
+      data: {
+        id,
+        r2_key: normalizedUrl,
+        filename,
+        content_type: "image/external",
+        size_bytes: 0,
+        alt: body.alt,
+        storage: "external",
+        created_at: now,
+      },
+    }, 201);
   } catch (error) {
     return fail(c, error);
   }
@@ -696,6 +818,16 @@ adminRoutes.get("/coupons", async (c) => {
   }
 });
 
+adminRoutes.get("/coupons/:id", async (c) => {
+  try {
+    const detail = await getCouponDetail(db(c), c.req.param("id"));
+    if (!detail) throw new HttpError(404, "coupon_not_found", "Coupon not found.");
+    return c.json({ ok: true, data: detail });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
 adminRoutes.post("/coupons", async (c) => {
   try {
     const input = parse(couponInputSchema, await readJson(c));
@@ -901,6 +1033,27 @@ adminRoutes.post("/pages", async (c) => {
     const id = await createContentPage(db(c), input.slug, input.title);
     await audit(c, "page.created", "page", id, { slug: input.slug });
     return c.json({ ok: true, data: { id, slug: input.slug } }, 201);
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.put("/pages/:slug", async (c) => {
+  try {
+    const body = parse(z.object({ title: z.string().trim().min(1).max(140) }), await readJson(c));
+    await updatePageTitle(db(c), c.req.param("slug"), body.title);
+    await audit(c, "page.renamed", "page", c.req.param("slug"), { title: body.title });
+    return c.json({ ok: true });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.delete("/pages/:slug", async (c) => {
+  try {
+    await deleteContentPage(db(c), c.req.param("slug"));
+    await audit(c, "page.deleted", "page", c.req.param("slug"));
+    return c.json({ ok: true });
   } catch (error) {
     return fail(c, error);
   }
@@ -1241,7 +1394,8 @@ adminRoutes.post("/settings/password", async (c) => {
       c.req.header("cf-connecting-ip") ?? null,
     );
     if (!result.ok) throw new HttpError(400, "password_change_failed", result.message);
-    await audit(c, "admin.password_changed", "admin", c.get("adminId"));
+    const revokedApiKeys = await revokeAllApiKeysForAdmin(db(c), c.get("adminId"));
+    await audit(c, "admin.password_changed", "admin", c.get("adminId"), { revokedApiKeys });
     return c.json({ ok: true });
   } catch (error) {
     return fail(c, error);

@@ -25,8 +25,12 @@ jobs:
         run: pnpm typecheck
       - name: Tests
         run: pnpm test
+      - name: CLI tests
+        run: pnpm test:cli
       - name: Build
         run: pnpm build
+      - name: Build documentation site
+        run: pnpm docs:build
 
   e2e:
     runs-on: ubuntu-latest

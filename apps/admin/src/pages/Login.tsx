@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { publicGet, publicSend } from "../api";
 import { Field } from "../components";
+import { BrandMark } from "../icons";
 import { useI18n } from "../i18n";
 import type { Admin } from "../types";
 
@@ -68,7 +69,7 @@ export function LoginPage({ onAuthenticated }: { onAuthenticated: (admin: Admin)
     <div class="auth-screen">
       <div class="auth-card">
         <div class="auth-brand">
-          <span class="brand-mark">C</span> CloudCart
+          <BrandMark /> CloudCart
           {i18nEnabled && showSwitcher && locales.length > 1 && (
             <select
               class="locale-select locale-select--auth"

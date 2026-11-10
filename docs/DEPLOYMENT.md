@@ -81,6 +81,23 @@ For local development, `pnpm run dev` creates local-only `.dev.vars` values auto
 
 Update payment provider webhook URLs and the store’s canonical URLs after the domain is active.
 
+## 5.1 Documentation site
+
+The public manual in `apps/docs` is an Astro Starlight static site. Deploy it as a separate
+Cloudflare project, never inside the store Worker.
+
+```bash
+DOCS_SITE_URL=https://docs.example.com pnpm docs:deploy
+```
+
+This builds `apps/docs/dist` and deploys the static-assets Worker defined by `wrangler.docs.jsonc`
+(`cloudcart-docs`). Alternatively, connect the repository to Cloudflare Pages with:
+
+- Build command: `pnpm --filter @cloudcart/docs build`
+- Output directory: `apps/docs/dist`
+
+Set `DOCS_SITE_URL` in CI when using a custom domain so canonical URLs and the sitemap are correct.
+
 ## 6. Updating
 
 ```bash
@@ -127,8 +144,9 @@ Each deployment should use distinct resource names, e.g.:
 - Worker `cloudcart-fashion`
 - D1 `cloudcart-fashion`
 
-R2 can be added later for direct file uploads. Never point two stores at the same D1 database in the
-default deployment model.
+R2 can be added later for direct file uploads; alternatively configure a public GitHub repository and
+PAT in **Settings → Media storage** to upload through jsDelivr. Never point two stores at the same D1
+database in the default deployment model.
 
 ## 10. Troubleshooting
 
@@ -142,7 +160,7 @@ default deployment model.
 | `wrangler` says not authenticated | `npx wrangler login` |
 | Deployment fails on missing `database_id` | Run the script (it writes the id) or set it manually |
 | Webhook signature failures | Verify the exact webhook secret and endpoint URL; Stripe requires the raw body |
-| Image upload unavailable | The default deployment uses external HTTPS image URLs. Enable R2 and add the `MEDIA` binding to allow direct uploads |
+| Image upload unavailable | Configure R2 (`MEDIA` binding) or jsDelivr in **Settings → Media storage**. External HTTPS URLs remain available as an advanced option |
 | Email queue stays empty | Enable the Email Notifications plugin and save a From address plus a Resend key or the `EMAIL` binding |
 | Email shows “binding is not configured” | Add the `send_email` binding and redeploy, or switch the backend to Resend |
 | Old asset hashes after deploy | Assets are rebuilt by the script; ensure `dist/` is regenerated |

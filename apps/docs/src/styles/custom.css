@@ -1,0 +1,215 @@
+/* CloudCart docs theme. Starlight's color scale is inverted between themes:
+   in light mode `--sl-color-white` is the strongest *text* color and
+   `--sl-color-black` is the page background. */
+
+:root {
+  --sl-font: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --sl-content-width: 52rem;
+  --sl-sidebar-width: 19rem;
+  --cc-serif: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", Georgia, serif;
+  --cc-radius: 16px;
+  --cc-shadow: 0 18px 44px rgba(23, 61, 43, 0.08);
+}
+
+/* Dark is Starlight's default theme. */
+:root,
+:root[data-theme="dark"] {
+  --sl-color-white: #f6f4ec;
+  --sl-color-gray-1: #e9e6dc;
+  --sl-color-gray-2: #d4d0c5;
+  --sl-color-gray-3: #a9ada5;
+  --sl-color-gray-4: #7d847e;
+  --sl-color-gray-5: #4b534d;
+  --sl-color-gray-6: #2a322d;
+  --sl-color-gray-7: #1b221e;
+  --sl-color-black: #0b0f0d;
+
+  --sl-color-bg: #0f1512;
+  --sl-color-bg-nav: rgba(15, 21, 18, 0.9);
+  --sl-color-bg-sidebar: #121a16;
+  --sl-color-bg-inline-code: #1c2721;
+  --sl-color-hairline: #2d3832;
+  --sl-color-hairline-light: #232d27;
+  --sl-color-hairline-shade: #0b0f0d;
+
+  --sl-color-accent-low: #173d2b;
+  --sl-color-accent: #6bbf93;
+  --sl-color-accent-high: #c8ecd9;
+  --sl-color-text-accent: #8fd8b0;
+  --sl-color-text-invert: #0b0f0d;
+  --sl-color-bg-accent: #8fd8b0;
+
+  --cc-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="light"] {
+  --sl-color-white: #14231b;
+  --sl-color-gray-1: #1b2a21;
+  --sl-color-gray-2: #334239;
+  --sl-color-gray-3: #5b6b61;
+  --sl-color-gray-4: #8a968e;
+  --sl-color-gray-5: #c0c8c1;
+  --sl-color-gray-6: #e4e8e2;
+  --sl-color-gray-7: #f3f4ef;
+  --sl-color-black: #ffffff;
+
+  --sl-color-bg: #fcfbf7;
+  --sl-color-bg-nav: rgba(252, 251, 247, 0.9);
+  --sl-color-bg-sidebar: #f7f5ee;
+  --sl-color-bg-inline-code: #eef1ea;
+  --sl-color-hairline: #e5e0d5;
+  --sl-color-hairline-light: #eeeae1;
+  --sl-color-hairline-shade: #e5e0d5;
+
+  --sl-color-accent-low: #e7f0ea;
+  --sl-color-accent: #2f6b4f;
+  --sl-color-accent-high: #173d2b;
+  --sl-color-text-accent: #24573f;
+  --sl-color-text-invert: #ffffff;
+  --sl-color-bg-accent: #24573f;
+
+  --cc-shadow: 0 18px 44px rgba(23, 61, 43, 0.08);
+}
+
+body {
+  font-feature-settings: "kern", "liga";
+}
+
+.site-title {
+  font-family: var(--cc-serif);
+  letter-spacing: -0.01em;
+}
+
+header.header {
+  backdrop-filter: blur(14px);
+  border-bottom-color: var(--sl-color-hairline);
+}
+
+/* Splash hero */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(2.2rem, 5vw, 4rem);
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 28px;
+  background:
+    radial-gradient(1100px 420px at 15% -10%, rgba(47, 107, 79, 0.16), transparent 60%),
+    radial-gradient(900px 380px at 95% 0%, rgba(190, 160, 90, 0.14), transparent 55%),
+    var(--sl-color-bg);
+  box-shadow: var(--cc-shadow);
+}
+
+:root[data-theme="dark"] .hero {
+  background:
+    radial-gradient(1100px 420px at 15% -10%, rgba(107, 191, 147, 0.18), transparent 60%),
+    radial-gradient(900px 380px at 95% 0%, rgba(190, 160, 90, 0.1), transparent 55%),
+    #121a16;
+}
+
+.hero h1 {
+  font-family: var(--cc-serif);
+  letter-spacing: -0.03em;
+  color: var(--sl-color-white);
+}
+
+.hero .tagline {
+  max-width: 46rem;
+  color: var(--sl-color-gray-3);
+  font-size: clamp(1rem, 1.4vw, 1.2rem);
+  line-height: 1.75;
+}
+
+.hero .actions a {
+  border-radius: 999px;
+  padding-inline: 1.2rem;
+}
+
+/* Markdown content */
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  font-family: var(--cc-serif);
+  letter-spacing: -0.015em;
+}
+
+.sl-markdown-content h2 {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+.sl-markdown-content a {
+  text-underline-offset: 0.18em;
+}
+
+.sl-markdown-content table {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.sl-markdown-content blockquote {
+  border-left-color: var(--sl-color-accent);
+  background: var(--sl-color-accent-low);
+  border-radius: 0 12px 12px 0;
+  padding: 0.8rem 1.1rem;
+}
+
+/* Cards rendered by Starlight link cards / custom grids */
+.card {
+  border-radius: var(--cc-radius);
+  border-color: var(--sl-color-hairline);
+  box-shadow: 0 10px 30px rgba(23, 61, 43, 0.05);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--sl-color-accent);
+  box-shadow: var(--cc-shadow);
+}
+
+.sl-link-card {
+  border-radius: var(--cc-radius);
+  border-color: var(--sl-color-hairline);
+}
+
+.sl-link-card:hover {
+  border-color: var(--sl-color-accent);
+}
+
+/* Sidebar */
+.sidebar-panel {
+  scrollbar-width: thin;
+}
+
+.sidebar-content .top-level > li > a,
+.sidebar-content summary {
+  letter-spacing: 0.01em;
+}
+
+.sidebar-content a[aria-current="page"] {
+  font-weight: 650;
+}
+
+/* Code blocks */
+.expressive-code {
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Search */
+site-search button[data-open-modal] {
+  border-radius: 999px;
+}
+
+/* Documentation page rhythm */
+.sl-markdown-content > :where(p, ul, ol) {
+  line-height: 1.8;
+}
+
+/* Small screens */
+@media (max-width: 780px) {
+  .hero {
+    padding: 1.6rem;
+    border-radius: 20px;
+  }
+}

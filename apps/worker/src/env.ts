@@ -14,6 +14,8 @@ export interface Env {
   APP_ENV?: string;
   /** Test/E2E only: allow http://127.0.0.1 remote plugin URLs. */
   PLUGIN_ALLOW_INSECURE_ORIGINS?: string;
+  /** Test/E2E only: override the GitHub API base with a loopback mock. */
+  MEDIA_JSDELIVR_API_BASE?: string;
   STORE_NAME?: string;
   STORE_CURRENCY?: string;
   STORE_TIMEZONE?: string;
@@ -22,8 +24,12 @@ export interface Env {
 export interface AppVariables {
   adminId: string;
   adminEmail: string;
+  adminRole: "owner" | "admin";
   sessionId: string;
   csrfToken: string;
+  authMethod: "session" | "api_key";
+  apiKeyId?: string;
+  apiKeyScopes?: string[];
   pluginId?: string;
   pluginPermissions?: string[];
   pluginStoreId?: string;
@@ -35,4 +41,4 @@ export type AppContext = {
   Variables: AppVariables;
 };
 
-export const CLOUDCART_VERSION = "0.3.0";
+export const CLOUDCART_VERSION = "0.5.0";

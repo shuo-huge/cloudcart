@@ -190,6 +190,44 @@ export interface ThemeToken {
   group?: string;
 }
 
+export type MediaStorageProvider = "r2" | "jsdelivr";
+export type MediaStorage = MediaStorageProvider | "external";
+
+export interface MediaAsset {
+  id: string;
+  r2_key: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number;
+  width: number | null;
+  height: number | null;
+  alt: string;
+  uploaded_by: string | null;
+  storage: MediaStorage;
+  created_at: string;
+}
+
+export interface MediaStorageStatus {
+  defaultProvider: MediaStorageProvider;
+  effectiveDefault: MediaStorageProvider;
+  providers: {
+    r2: { available: boolean; configured: boolean; reason?: string };
+    jsdelivr: {
+      available: boolean;
+      configured: boolean;
+      tokenConfigured: boolean;
+      tokenReadable: boolean;
+      owner: string;
+      repo: string;
+      branch: string;
+      path: string;
+      reason?: string;
+    };
+    external: { available: true; configured: true; advanced: true };
+  };
+  updatedAt: string | null;
+}
+
 export interface PluginAdminPage {
   id: string;
   label: string;

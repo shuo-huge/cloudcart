@@ -32,7 +32,7 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testIgnore: /setup\.spec\.ts/,
+      testIgnore: [/setup\.spec\.ts/, /screenshots\.spec\.ts/],
       use: { ...devices["Desktop Chrome"], channel: "chromium", storageState: "e2e/.auth/admin.json" },
       dependencies: ["setup"],
     },

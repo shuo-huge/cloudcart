@@ -13,7 +13,7 @@ test.describe("responsive admin layout", () => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto("/admin/products");
       await expect(page.locator(".menu-button")).toBeVisible();
-      await expect(page.locator(".menu-button")).toHaveCSS("display", "block");
+      await expect(page.locator(".menu-button")).toHaveCSS("display", "flex");
       await page.locator(".menu-button").click();
       await expect(page.locator(".sidebar")).toHaveClass(/sidebar--open/);
       await expect(page.locator(".sidebar-scrim")).toBeVisible();

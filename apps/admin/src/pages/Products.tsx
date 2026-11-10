@@ -14,8 +14,9 @@ import {
   toast,
   useAsync,
 } from "../components";
+import { MediaUploader } from "../media-uploader";
 import { linkProps, navigate } from "../router";
-import type { Category, Product, ProductImage, ProductVariant } from "../types";
+import type { Category, MediaAsset, Product, ProductImage, ProductVariant } from "../types";
 
 function mediaUrl(key: string | null): string {
   if (!key) return "";
@@ -244,6 +245,7 @@ export function ProductEditorPage({ id }: { id: string | null }) {
     if (loading || !mediaGridRef.current || !product || !id) return;
     const sortable = Sortable.create(mediaGridRef.current, {
       animation: 150,
+      draggable: ".media-tile",
       handle: ".media-drag-handle",
       ghostClass: "media-tile--ghost",
       forceFallback: true,
@@ -311,6 +313,12 @@ export function ProductEditorPage({ id }: { id: string | null }) {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function attachUploadedImage(media: MediaAsset): Promise<void> {
+    if (!id) return;
+    await adminSend(`/products/${id}/images`, "POST", { mediaId: media.id, alt: form.name });
+    await load();
   }
 
   async function addExternalImage() {
@@ -402,21 +410,28 @@ export function ProductEditorPage({ id }: { id: string | null }) {
 
                 </div>
                 <p class="muted small">Drag to reorder. The first image is the storefront cover.</p>
-                <div class="field">
-                  <span class="field-label">External image URL</span>
-                  <div class="row-actions">
-                    <input
-                      type="url"
-                      placeholder="https://example.com/product-image.jpg"
-                      value={externalImageUrl}
-                      onInput={(event) => setExternalImageUrl((event.target as HTMLInputElement).value)}
-                    />
-                    <button type="button" class="button" disabled={uploading || !externalImageUrl.trim()} onClick={() => void addExternalImage()}>
-                      {uploading ? "Adding…" : "Add URL"}
-                    </button>
+                <MediaUploader
+                  alt={form.name}
+                  onUploaded={attachUploadedImage}
+                />
+                <details class="media-advanced">
+                  <summary>Advanced: external image URL</summary>
+                  <div class="field">
+                    <span class="field-label">External image URL</span>
+                    <div class="row-actions">
+                      <input
+                        type="url"
+                        placeholder="https://example.com/product-image.jpg"
+                        value={externalImageUrl}
+                        onInput={(event) => setExternalImageUrl((event.target as HTMLInputElement).value)}
+                      />
+                      <button type="button" class="button" disabled={uploading || !externalImageUrl.trim()} onClick={() => void addExternalImage()}>
+                        {uploading ? "Adding…" : "Add URL"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <p class="muted small">Use a public HTTPS image URL. File uploads require R2, which is optional.</p>
+                  <p class="muted small">Link an existing public HTTPS image instead of uploading a copy.</p>
+                </details>
               </>
             )}
           </section>

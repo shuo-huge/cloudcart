@@ -1,6 +1,6 @@
 {
   "name": "cloudcart",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "private": true,
   "description": "A lightweight, plugin-based, themeable ecommerce platform built natively for Cloudflare Workers Free.",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "pnpm run build:storefront && node scripts/generate-assets.mjs && pnpm run build:admin && node scripts/prepare-admin.mjs",
+    "build": "pnpm run build:storefront && node scripts/generate-assets.mjs && pnpm run build:admin && node scripts/prepare-admin.mjs && node scripts/prepare-brand.mjs",
     "build:storefront": "pnpm --filter @cloudcart/storefront build",
     "build:admin": "pnpm --filter @cloudcart/admin build",
     "dev": "pnpm run dev:setup && pnpm run build && wrangler dev",
@@ -21,9 +21,19 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "test": "vitest run",
+    "test:cli": "vitest run --config vitest.cli.config.ts",
     "test:watch": "vitest",
+    "cloudcart": "node apps/cli/bin/cloudcart.mjs",
+    "cli": "node apps/cli/bin/cloudcart.mjs",
+    "publish:jsdelivr": "node scripts/publish-jsdelivr.mjs",
     "test:e2e": "pnpm build && playwright test",
     "test:e2e:server": "node scripts/e2e-server.mjs",
+    "screenshots": "pnpm build && playwright test --config playwright.screenshots.config.ts",
+    "docs:dev": "pnpm --filter @cloudcart/docs dev",
+    "docs:build": "pnpm --filter @cloudcart/docs build",
+    "docs:preview": "pnpm --filter @cloudcart/docs preview",
+    "docs:deploy": "pnpm run docs:build && wrangler deploy --config wrangler.docs.jsonc",
+    "icons": "node scripts/generate-icons.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"
   },

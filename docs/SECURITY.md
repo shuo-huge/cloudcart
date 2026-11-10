@@ -12,6 +12,36 @@
 - Login rate limiting: 5 failures per email or 15 per IP in 15 minutes → HTTP 429.
 - Password change revokes all sessions.
 
+## API keys (CLI and agents)
+
+- Long-lived admin API keys are bearer tokens (`cck_<id>.<secret>`). D1 stores only a SHA-256 hash
+  and the public key id; the plaintext is returned once at creation.
+- Keys are scoped per resource (`products:read`, `products:write`, `pages:read`, `orders:write`,
+  etc.). The wildcard `*` is opt-in for the generic `cloudcart api` escape hatch.
+- API keys bypass CSRF, but only when the request carries `Authorization: Bearer`. Cookie sessions
+  keep the existing double-submit CSRF requirement.
+- API keys cannot change the administrator password, create/revoke other keys, manage plugins, or
+  log out a browser session. Only `DELETE /api/admin/api-keys/self` is allowed for self-revocation.
+- Changing the administrator password revokes all of that administrator's API keys.
+- Keys support expiry, last-used tracking (throttled to once per minute), a 20-key per-admin limit,
+  audit entries (`api_key.created`, `api_key.revoked`) and `via:"api_key"` details on writes.
+- Store keys in environment variables or a secret manager, never in source control. The CLI writes
+  the user-level config with mode `0600` where the platform supports it.
+
+## Media storage credentials
+
+- The GitHub PAT used for jsDelivr uploads is encrypted with AES-GCM under a key derived from
+  `APP_MASTER_KEY` and stored in `media_storage_config.jsdelivr_token_encrypted`.
+- `GET /api/admin/media/storage` returns only `tokenConfigured`/`tokenReadable`; it never returns
+  the token or ciphertext. `PUT /api/admin/media/storage` and the test endpoint require either a
+  browser session or an API key with the `*` scope; ordinary `media:write` keys cannot change them.
+- Only public GitHub repositories are accepted, because jsDelivr cannot serve private repositories.
+  Uploads are path-validated and use generated filenames, so a user cannot traverse outside the
+  configured folder.
+- GitHub errors are mapped to safe error messages; the token is never logged or returned.
+- Changing `APP_MASTER_KEY` makes the stored token unreadable; the admin must re-enter it.
+- Deleting media removes D1 rows and R2 objects only; jsDelivr/GitHub files are not deleted remotely.
+
 ## CSRF
 
 Admin mutations require:
@@ -92,11 +122,16 @@ events write audit entries with no admin actor.
 ## Known limitations / deliberate choices
 
 - No 2FA or WebAuthn.
-- Rate limiting is limited to login attempts (DB-backed); public cart/checkout endpoints are not
-  rate-limited by IP in v1.
+- Rate limiting is limited to login attempts (DB-backed); public cart/checkout endpoints and API-key
+  requests are not rate-limited per key in v1. Use scopes, revocation and Cloudflare WAF/rate limits
+  for agents that need tighter controls.
+- API keys are long-lived by default. Set an explicit expiry for unattended agents and rotate keys
+  after staff changes.
 - CSP allows inline styles (theme/editor output) and includes inline `application/ld+json` blocks;
-  scripts are restricted to same-origin. The admin CSP allows `frame-src` only for exact origins of
-  enabled remote plugins; plugin pages are sandboxed and must allow the store origin as an ancestor.
+  scripts are restricted to same-origin. `img-src` allows `https:` because external product/theme
+  images are a supported feature (the media API only accepts public HTTPS URLs).
+  The admin CSP allows `frame-src` only for exact origins of enabled remote plugins; plugin pages
+  are sandboxed and must allow the store origin as an ancestor.
 - The admin preview iframe uses `sandbox="allow-scripts allow-forms"` without `allow-same-origin`.
 - No automatic security headers are applied to edge-served static assets (they contain no dynamic
   content).
