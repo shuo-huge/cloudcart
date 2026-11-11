@@ -145,7 +145,7 @@ pnpm test:e2e
 
 ## 文档站
 
-公开使用文档在 `apps/docs`，使用 Astro Starlight 构建，和商城 Worker 分开部署。
+公开使用文档已部署在 **https://cloudcart-docs.cloudcart-shuo-preview.workers.dev**，支持简体中文 / English 语言切换。文档源码在 `apps/docs`，使用 Astro Starlight 构建，和商城 Worker 分开部署。
 
 ```bash
 pnpm docs:dev       # 本地预览 http://localhost:4321
@@ -157,7 +157,7 @@ pnpm docs:deploy    # 构建并部署 cloudcart-docs Worker
 
 部署到正式域名前设置 `DOCS_SITE_URL`（例如 `DOCS_SITE_URL=https://docs.example.com`），这样 canonical 和 sitemap 会使用正式域名。
 
-页面内容在 `apps/docs/src/content/docs/**/*.md`，左侧目录在 `apps/docs/astro.config.mjs`。
+中文页面在 `apps/docs/src/content/docs/**/*.md`（`/`），英文页面在 `apps/docs/src/content/docs/en/**/*.md`（`/en/`）。左侧目录及英文标签在 `apps/docs/astro.config.mjs`。
 
 品牌图标在 `brand/`。提交到仓库的 favicon / App icon 由其中的 SVG 母版生成；修改图标后运行 `pnpm icons` 重新生成。
 

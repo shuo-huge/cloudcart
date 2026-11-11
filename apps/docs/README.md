@@ -20,8 +20,9 @@ pnpm --filter @cloudcart/docs build
 
 ## 修改内容
 
-- 页面：`src/content/docs/**/*.md`
-- 左侧目录：`astro.config.mjs` 的 `sidebar`
+- 中文页面（默认语言，`/`）：`src/content/docs/**/*.md`
+- 英文页面（`/en/`）：`src/content/docs/en/**/*.md`
+- 左侧目录：`astro.config.mjs` 的 `sidebar`；英文标签写在每项的 `translations.en`
 - 主题样式：`src/styles/custom.css`
 - Logo：`src/assets/logo.svg`
 - Favicon / App icon：由仓库根目录 `brand/` 生成，`public/` 中保存文档站使用的副本
@@ -29,8 +30,9 @@ pnpm --filter @cloudcart/docs build
 
 新增页面时：
 
-1. 在 `src/content/docs` 下新建 `.md` 文件
-2. 加 frontmatter：
+1. 在 `src/content/docs` 下新建中文 `.md` 文件
+2. 在 `src/content/docs/en` 下新建相同路径的英文 `.md` 文件
+3. 两边都加 frontmatter：
 
    ```yaml
    ---
@@ -39,9 +41,11 @@ pnpm --filter @cloudcart/docs build
    ---
    ```
 
-3. 在 `astro.config.mjs` 的 `sidebar` 中加一条 `{ label, slug }`
+4. 在 `astro.config.mjs` 的 `sidebar` 中加一条 `{ label, translations: { en: "..." }, slug }`
 
-`slug` 是相对 `src/content/docs` 的路径，不带 `.md`。
+`slug` 是相对 `src/content/docs` 的路径，不带 `.md`。英文页面里的站内链接要加 `/en` 前缀，例如 `/en/getting-started/introduction/`。
+
+语言切换由 Starlight 根据 `locales` 自动生成；新增语言时同时配置 `locales`、页面目录和 sidebar `translations`。
 
 ## Cloudflare 部署
 
@@ -54,10 +58,10 @@ pnpm --filter @cloudcart/docs build
 ### 方式二：Workers Static Assets
 
 ```bash
-pnpm run docs:deploy
+DOCS_SITE_URL=https://cloudcart-docs.cloudcart-shuo-preview.workers.dev pnpm run docs:deploy
 ```
 
-该命令会构建文档并使用 `wrangler.docs.jsonc` 部署独立的 `cloudcart-docs` Worker。
+该命令会构建文档并使用 `wrangler.docs.jsonc` 部署独立的 `cloudcart-docs` Worker。设置 `DOCS_SITE_URL` 后，中英文页面的 canonical URL 和 sitemap 都会使用正式域名。
 
 自定义域名在 Cloudflare Dashboard 的 Worker/Pages 设置中添加。
 
