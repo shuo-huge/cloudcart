@@ -132,5 +132,7 @@ The automated suite covers:
 - PayPal return capture → order paid;
 - PayPal webhook verification calls the verify API and processes the event.
 
-**No live Sandbox transaction has been performed against Stripe or PayPal in this repository.**
-Provider APIs are mocked deterministically in `tests/payments.test.ts`. See `docs/TEST_REPORT.md`.
+A live **Stripe Sandbox** checkout was verified on 2026-11-11 with test card `4242 4242 4242 4242`
+(order `CC-20261111-SDFVBC`); the webhook marked the order paid. A live PayPal Sandbox transaction
+has not been run yet. Provider APIs are mocked deterministically in `tests/payments.test.ts`. See
+`docs/TEST_REPORT.md`.

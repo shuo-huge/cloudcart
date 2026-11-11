@@ -220,7 +220,7 @@ Default、Fashion、Beauty、Electronics、Jewelry、Home、Sports、Single Prod
 ### 可视化页面编辑器
 三栏布局，SortableJS 拖拽排序，新增/删除/复制/隐藏模块，模块内容与样式配置，桌面/平板/手机实时预览，自动保存草稿，撤销/重做，发布并生成不可变版本快照，可把任意已发布版本恢复为草稿。页面 JSON 服务端校验，自定义 HTML 严格消毒。
 
-![中文后台登录](docs/images/admin-login-zh.png)
+![简体中文后台登录](docs/images/admin-login-zh.png)
 
 ### 支付
 - **人工支付**：银行转账、货到付款、自定义说明，管理员确认收款并写入审计。
@@ -280,11 +280,11 @@ docs/             架构、插件、主题、支付、部署、安全、测试�
 
 **v0.5.0 — 功能可用，但尚未宣称 1.0。** 已实现和未实现的事项都明确列出。
 
-已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、内置/远程混合插件与 iframe 后台、短期插件 JWT、HMAC 服务调用、远程支付适配器、R2/jsDelivr 本地上传与加密凭据、面向智能体的 API Key 管理 CLI、105 个 workerd 测试、21 个 CLI Node 测试、12 个 Playwright 浏览器测试（含 setup 共 13 个）。
+已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、内置/远程混合插件与 iframe 后台、短期插件 JWT、HMAC 服务调用、远程支付适配器、R2/jsDelivr 本地上传与加密凭据、面向智能体的 API Key 管理 CLI、106 个 workerd 测试、21 个 CLI Node 测试、12 个 Playwright 浏览器测试（含 setup 共 13 个）。
 
 未验证或尚未完成：
-- 仓库内**没有对真实 Stripe/PayPal Sandbox 发起过交易**；测试中支付接口使用确定性 mock，Sandbox 账号待补充。
-- 维护者账户中的 Workers Builds 部署曾成功，但本次变更尚未重新部署。
+- 已于 2026-11-11 使用测试卡 `4242 4242 4242 4242` 完成真实 Stripe Sandbox 支付验证（订单 `CC-20261111-SDFVBC`）；PayPal Sandbox 账号仍待补充。自动化测试中的支付接口仍使用 mock。
+- 维护者账户中的 Cloudflare 部署已验证（Workers Builds 与 `wrangler deploy` 均成功）。
 - PayPal 使用托管审批跳转，不是嵌入式 Smart Buttons。
 - 尚未接入真实邮件服务商发送；Resend 与 Cloudflare 通道使用 mock 或单元测试验证。
 - 暂无公共插件市场、发布者签名、评分、付费或自动更新。
