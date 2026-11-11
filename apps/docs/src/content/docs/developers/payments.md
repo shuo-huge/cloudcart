@@ -76,7 +76,7 @@ refund?
 
 ## 测试
 
-支付服务商 API 在测试中使用 mock。当前版本没有真实 Stripe/PayPal Sandbox 交易测试；上线前请用 Sandbox 账号完整走一遍。
+支付服务商 API 在自动化测试中使用 mock。Stripe Sandbox 已于 2026-11-11 使用测试卡完成真实支付与 webhook 验证；PayPal Sandbox 仍待补充，上线前请用 Sandbox 账号完整走一遍。
 
 ## 安全建议
 

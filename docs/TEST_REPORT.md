@@ -1,6 +1,6 @@
 # Test Report
 
-**Date:** 2026-11-09
+**Date:** 2026-11-11
 **Environment:** Windows 10, Node.js 24.18.0, pnpm 12.16.1, Wrangler 4.158.0,
 Vitest 4.1.12, `@cloudflare/vitest-plugin` 1.6.0 (workerd; real D1 binding),
 Playwright 1.65.0 (Chromium 1254).
@@ -16,7 +16,7 @@ passing without its output.
 |---|---|
 | `pnpm install` | dependencies installed (26 workspace projects) |
 | `pnpm typecheck` (`tsc --noEmit`) | **passed**, no diagnostics |
-| `pnpm test` | **17 test files, 105 tests passed**, ~8 s |
+| `pnpm test` | **17 test files, 106 tests passed**, ~8 s |
 | `pnpm test:cli` | **6 test files, 21 tests passed**, ~0.4 s |
 | `pnpm build` | storefront + admin built; asset references regenerated |
 | `pnpm test:e2e` | **13 Playwright tests passed** (1 setup + 12 browser), ~31 s |
@@ -38,10 +38,12 @@ this session.
 - `/api/setup/status` reports an uninstalled store on a fresh DB.
 - Unknown API route returns JSON 404.
 
-### `tests/shared.test.ts` (9 tests)
+### `tests/shared.test.ts` (10 tests)
 - Money parsing without floating point (`19.99 → 1999`), invalid inputs, JPY zero-decimal.
 - Integer percentage rounding.
 - Slug normalisation and reserved-path safe redirects.
+- Security headers keep hosted Stripe/PayPal redirects in `form-action` while other form targets
+  stay same-origin.
 - HTML sanitiser removes scripts/event handlers/`javascript:` URLs, keeps safe links/images,
   escapes plain text.
 
@@ -188,12 +190,26 @@ The E2E suite discovered and verified two UI fixes made in this change:
 - The checkout page estimated shipping for an empty country while the form defaulted to US. The
   checkout view now uses US as the initial country, preventing a shipping-rate mismatch on submit.
 
+### Manual live Stripe Sandbox verification (2026-11-11)
+
+A production deployment was tested with Stripe test keys and card `4242 4242 4242 4242`:
+
+- The first attempt created an order but the browser blocked the redirect to Stripe because
+  `form-action 'self'` did not include `https://checkout.stripe.com`.
+- The CSP was updated to allow the bundled Stripe/PayPal hosted-checkout origins (PR #5).
+- After redeploying, checkout completed. Stripe sent `checkout.session.completed`; the webhook was
+  verified and processed, the order became `paid`, and `payment_transactions.status` became `succeeded`.
+- Eleven unpaid test orders from the debugging runs were cancelled and their stock restored; one paid
+  test order (`CC-20261111-SDFVBC`) remains as evidence.
+
 ---
 
 ## 4. Not tested (explicit)
 
-- **Live Stripe Sandbox and PayPal Sandbox transactions.** Provider APIs are mocked; no real
-  credentials or money movement were used. Sandbox accounts are still to be supplied.
+- **PayPal Sandbox transactions.** No live PayPal Sandbox transaction has been run; PayPal
+  credentials are still to be supplied. A live Stripe Sandbox checkout was verified manually on
+  2026-11-11 with test card `4242 4242 4242 4242` (order `CC-20261111-SDFVBC`); automated provider
+  tests remain mocked.
 - **Live email provider delivery.** Resend and Cloudflare transports are mocked/unit-tested; no real
   message has been sent.
 - **Real R2 upload integration.** The R2 provider is covered with a fake bucket object; this

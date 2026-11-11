@@ -52,7 +52,7 @@ pnpm test:e2e
 
 ## 已知未测试
 
-- 真实 Stripe/PayPal Sandbox 交易
+- PayPal Sandbox 交易（Stripe Sandbox 已验证）
 - 真实邮件服务商投递
 - 公网 HTTPS 第三方远程插件
 - R2 上传集成

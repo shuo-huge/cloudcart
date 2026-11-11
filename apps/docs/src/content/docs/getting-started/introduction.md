@@ -36,7 +36,7 @@ CloudCart 是一个免费、开源、插件化的电商系统，原生运行在 
 
 尚未完成或未验证：
 
-- 真实 Stripe/PayPal Sandbox 交易（测试中使用 mock）
+- PayPal Sandbox 交易（Stripe Sandbox 已完成真实支付验证；自动化测试使用 mock）
 - 真实邮件服务商投递
 - 公共插件市场、发布者签名、付费与自动更新
 - 远程主题、远程店铺前端
