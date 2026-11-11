@@ -16,6 +16,18 @@ const DEFAULT_FRAME_ORIGINS = [
   "https://www.sandbox.paypal.com",
 ];
 
+/**
+ * Hosted checkout redirects happen as the response to a form POST, so browsers
+ * apply `form-action` to the redirect target. Keep this list limited to the
+ * bundled providers; remote plugins still render through frame-src.
+ */
+const DEFAULT_FORM_ACTION_ORIGINS = [
+  "https://checkout.stripe.com",
+  "https://buy.stripe.com",
+  "https://www.paypal.com",
+  "https://www.sandbox.paypal.com",
+];
+
 function frameOrigin(value: string, allowInsecure: boolean): string | null {
   if (typeof value !== "string" || value.length > 255 || /["'\s]/.test(value)) return null;
   let url: URL;
@@ -51,7 +63,7 @@ export function securityHeaders(options: SecurityHeaderOptions = {}): Record<str
     `frame-src 'self' ${[...frameOrigins].join(" ")}`,
     `frame-ancestors ${options.frameAncestors ?? "'none'"}`,
     "base-uri 'self'",
-    "form-action 'self'",
+    `form-action 'self' ${DEFAULT_FORM_ACTION_ORIGINS.join(" ")}`,
     "object-src 'none'",
   ].join("; ");
   return {

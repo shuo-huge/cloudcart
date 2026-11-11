@@ -54,7 +54,8 @@ Admin mutations require:
 - Every D1 query uses prepared statements; user input is never concatenated into SQL.
 - All API input is validated with Zod or explicit type checks.
 - Security headers: CSP, `X-Content-Type-Options`, `X-Frame-Options: DENY`, Referrer-Policy,
-  Permissions-Policy.
+  Permissions-Policy. `form-action` allows the bundled Stripe Checkout and PayPal hosted-checkout
+  origins so provider redirects are not blocked; all other form targets remain same-origin.
 - HTML escaping for all interpolated values; JSON-LD uses `<`, `>`, `&` escaping.
 - Rich text and custom HTML pass through an allow-list sanitiser:
   - drops `script`, `style`, `iframe`, `object`, `embed`, `form`, `svg`, `math`, etc.;
