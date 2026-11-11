@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatMoney, parseMoneyInput, percentageOf, slugify, safeRedirectPath } from "@cloudcart/shared";
-import { sanitizeHtml } from "@cloudcart/security";
+import { sanitizeHtml, securityHeaders } from "@cloudcart/security";
 
 describe("money", () => {
   it("parses decimal input into integer minor units without floats", () => {
@@ -35,6 +35,21 @@ describe("slugs and redirects", () => {
     expect(safeRedirectPath("https://evil.example")).toBe("/");
     expect(safeRedirectPath("//evil.example")).toBe("/");
     expect(safeRedirectPath("/products/ok")).toBe("/products/ok");
+  });
+});
+
+describe("security headers", () => {
+  it("allows hosted payment redirects in form-action", () => {
+    const csp = securityHeaders()["Content-Security-Policy"] ?? "";
+    for (const origin of [
+      "https://checkout.stripe.com",
+      "https://buy.stripe.com",
+      "https://www.paypal.com",
+      "https://www.sandbox.paypal.com",
+    ]) {
+      expect(csp).toContain(origin);
+    }
+    expect(csp).toContain("form-action 'self'");
   });
 });
 
