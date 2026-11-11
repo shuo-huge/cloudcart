@@ -146,7 +146,7 @@ pnpm test:e2e
 
 ## Documentation site
 
-The public user manual lives in `apps/docs` and uses Astro Starlight. It deploys independently from the store Worker.
+The public user manual is live at **https://cloudcart-docs.cloudcart-shuo-preview.workers.dev** and supports a Chinese/English language switcher. It lives in `apps/docs`, uses Astro Starlight, and deploys independently from the store Worker.
 
 ```bash
 pnpm docs:dev       # local preview at http://localhost:4321
@@ -158,7 +158,7 @@ pnpm docs:deploy    # build and deploy the cloudcart-docs Worker
 
 Set `DOCS_SITE_URL` before `docs:deploy` (for example `DOCS_SITE_URL=https://docs.example.com`) so canonical URLs and the sitemap use the public domain.
 
-Edit pages under `apps/docs/src/content/docs/**/*.md`; edit the sidebar in `apps/docs/astro.config.mjs`.
+Edit Chinese pages under `apps/docs/src/content/docs/**/*.md` (served at `/`) and English pages under `apps/docs/src/content/docs/en/**/*.md` (served at `/en/`). Sidebar labels and their English translations live in `apps/docs/astro.config.mjs`.
 
 Brand icons live in `brand/`. The committed favicon/App icon files are generated from the SVG masters there; run `pnpm icons` after changing the artwork.
 
