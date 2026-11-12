@@ -267,6 +267,22 @@ async function resolveOrder(db: Database, pluginId: string, event: PaymentEvent)
       const order = await db.first<OrderRow>("SELECT * FROM orders WHERE id = ?", [transaction.order_id]);
       if (order) return order;
     }
+    // Stripe charge events carry the PaymentIntent in `payment_intent` and may
+    // omit the Checkout Session metadata. The original transaction stores it
+    // in metadata_json, so use that as a fallback rather than dropping the
+    // refund event as an unknown order.
+    const byMetadata = await db.first<PaymentTransactionRow>(
+      `SELECT * FROM payment_transactions
+       WHERE plugin_id = ?
+         AND (json_extract(metadata_json, '$.providerTransactionId') = ?
+              OR json_extract(metadata_json, '$.providerOrderId') = ?)
+       ORDER BY created_at ASC LIMIT 1`,
+      [pluginId, identifier, identifier],
+    );
+    if (byMetadata) {
+      const order = await db.first<OrderRow>("SELECT * FROM orders WHERE id = ?", [byMetadata.order_id]);
+      if (order) return order;
+    }
   }
   return null;
 }
