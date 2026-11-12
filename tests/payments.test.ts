@@ -890,6 +890,28 @@ describe("PayPal payment plugin", () => {
     expect(paid?.payment_status).toBe("paid");
   });
 
+  it("tests PayPal credentials through the admin API", async () => {
+    await ensureSession();
+    await enable("paypal");
+    await configure("paypal", {
+      mode: "sandbox",
+      clientId: "paypal_client_id",
+      clientSecret: "paypal_client_secret",
+      webhookId: "WH-TEST-123",
+    }, ["clientSecret"]);
+    const mock = mockFetch([{
+      match: (url) => url.endsWith("/v1/oauth2/token"),
+      reply: () => jsonResponse({ access_token: "A21AA_test_token", expires_in: 3600 }),
+    }]);
+    try {
+      const response = await json("/api/admin/plugins/paypal/test", "POST", {}, csrf());
+      expect(response.status).toBe(200);
+      expect(mock.calls.some((url) => url.endsWith("/v1/oauth2/token"))).toBe(true);
+    } finally {
+      mock.restore();
+    }
+  });
+
   it("verifies PayPal webhook signatures before applying events", async () => {
     await ensureSession();
     const payload = JSON.stringify({

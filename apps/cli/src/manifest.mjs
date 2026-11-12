@@ -68,6 +68,8 @@ export const COMMANDS = [
   { path: "orders note", summary: "Add an internal order note.", usage: "cloudcart orders note ORDER_ID --note TEXT", mutates: true, run: commerce.ordersNote },
   { path: "orders cancel", summary: "Cancel an order and restock.", usage: "cloudcart orders cancel ORDER_ID --yes", mutates: true, run: commerce.ordersCancel },
   { path: "orders refund", summary: "Refund an order amount.", usage: "cloudcart orders refund ORDER_ID --amount 12.34 --yes", mutates: true, run: commerce.ordersRefund },
+  { path: "orders returns", summary: "List returns recorded for an order.", usage: "cloudcart orders returns ORDER_ID", run: commerce.ordersReturns },
+  { path: "orders return", summary: "Record an item-level return and optionally restock.", usage: "cloudcart orders return ORDER_ID --item ORDER_ITEM_ID:QTY [--item ...] [--restock] [--reason TEXT] [--note TEXT] --yes", mutates: true, run: commerce.ordersReturn },
 
   { path: "customers list", summary: "List customers.", usage: "cloudcart customers list [--q TEXT]", run: commerce.customersList },
   { path: "customers get", summary: "Get a customer.", usage: "cloudcart customers get CUSTOMER_ID", run: commerce.customersGet },

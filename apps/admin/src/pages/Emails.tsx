@@ -49,6 +49,8 @@ export function EmailsPage() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [working, setWorking] = useState(false);
+  const [testTo, setTestTo] = useState("");
+  const [testingEmail, setTestingEmail] = useState(false);
 
   const plugin = (plugins.data ?? []).find((row) => row.id === PLUGIN_ID);
   const enabled = plugin?.enabled === 1;
@@ -93,6 +95,19 @@ export function EmailsPage() {
       toast(err instanceof Error ? err.message : "Could not change the plugin state.", "error");
     } finally {
       setWorking(false);
+    }
+  }
+
+  async function sendTest(): Promise<void> {
+    if (!testTo) return;
+    setTestingEmail(true);
+    try {
+      await adminSend("/plugins/email-notifications/test", "POST", { to: testTo });
+      toast("Test email sent.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Test email failed.", "error");
+    } finally {
+      setTestingEmail(false);
     }
   }
 
@@ -180,6 +195,16 @@ export function EmailsPage() {
               <span>Send a copy to the support email</span>
             </label>
             <button type="submit" class="button button--primary" disabled={saving}>{saving ? "Saving…" : "Save email settings"}</button>
+            <div class="settings-subcard">
+              <h3>Test delivery</h3>
+              <p class="muted small">Save the settings first, then send a real test message.</p>
+              <Field label="Test recipient">
+                <input type="email" value={testTo} onInput={(event) => setTestTo((event.target as HTMLInputElement).value)} placeholder="you@example.com" />
+              </Field>
+              <button type="button" class="button" disabled={testingEmail || !enabled || !testTo} onClick={() => void sendTest()}>
+                {testingEmail ? "Sending…" : "Send test email"}
+              </button>
+            </div>
           </form>
         </section>
 
@@ -192,7 +217,7 @@ export function EmailsPage() {
             <div><dt>Failed</dt><dd>{emails.data?.summary.failed ?? 0}</dd></div>
           </dl>
           <p class="muted small">
-            Delivery is retried after each new order event or when you press Process queue. No cron job is required.
+            A cron trigger runs every 5 minutes and retries due messages. Process queue can also drain the outbox immediately.
           </p>
         </section>
       </div>

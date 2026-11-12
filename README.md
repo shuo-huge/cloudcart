@@ -11,7 +11,7 @@ One Worker · One D1 database · Local uploads to R2 or jsDelivr · Optional ext
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![D1](https://img.shields.io/badge/Database-D1-0051FF)](https://developers.cloudflare.com/d1/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-119%20passing-brightgreen)](docs/TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-127%20passing-brightgreen)](docs/TEST_REPORT.md)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Architecture](docs/ARCHITECTURE.md) · [Deployment](docs/DEPLOYMENT.md)
 
@@ -208,7 +208,7 @@ Blog posts reuse content pages: each post is published at `/pages/<slug>` with a
 Server-rendered HTML for home, collections, search, product pages, cart, checkout and content pages. Meta tags, canonical URLs, Open Graph, Twitter cards, Product/Breadcrumb/Website JSON-LD, `sitemap.xml`, `robots.txt`, and 301 redirects are built in. Product names and descriptions are crawlable without JavaScript.
 
 ### Admin
-Dashboard, products and variants, categories, local image uploads to R2 or jsDelivr (plus advanced external URLs), drag-reordered product image galleries, orders, customers, discounts, shipping zones and rates, tax rates, themes, visual page builder with version restore, plugins, email notifications with an outbox log, payment configuration, media library, store settings, SEO redirects, audit log, and local resource estimates.
+Dashboard, products and variants, categories, local image uploads to R2 or jsDelivr (plus advanced external URLs), drag-reordered product image galleries, orders, item-level returns with optional restocking, automatic unpaid-order expiry, customers, discounts, shipping zones and rates, tax rates, themes, visual page builder with version restore, plugins, email notifications with an outbox log and cron retries, payment configuration, media library, store settings, SEO redirects, audit log, and local resource estimates.
 
 ### Commerce core
 Server-side revalidation of prices, stock, coupons, shipping and tax on every checkout. Integer minor-unit money, order snapshots, atomic stock reservation with compensation, an explicit order state machine, manual payment confirmation with an audit trail, and manual shipment tracking. Tax supports country/region rate rules, a default rate, and tax-inclusive or tax-exclusive pricing; tax is included in the order total sent to payment providers.
@@ -231,7 +231,7 @@ Three-column editor with SortableJS drag ordering, add/remove/duplicate/hide sec
 Provider credentials are AES-GCM encrypted with a key derived from `APP_MASTER_KEY` and never returned to the browser.
 
 ### Plugins
-Build-time bundled plugins are enabled/disabled at runtime with D1-backed settings. The registry rejects bundled plugins that are not in the current build. Included: Manual, Stripe, PayPal, the **Admin Language Pack** (English / 简体中文), and **Email Notifications** (Resend or Cloudflare Email Workers, D1 outbox with retries and an admin log; disabled by default).
+Build-time bundled plugins are enabled/disabled at runtime with D1-backed settings. The registry rejects bundled plugins that are not in the current build. Included: Manual, Stripe, PayPal, the **Admin Language Pack** (English / 简体中文), and **Email Notifications** (Resend or Cloudflare Email Workers, D1 outbox with cron-driven retries and an admin log; disabled by default).
 
 **Remote plugins** are installed by Manifest URL without rebuilding the Worker. Their code and admin page run on the plugin author's HTTPS service; CloudCart stores only the manifest and calls signed APIs. Enabled remote plugins add their own pages to the admin sidebar and open inside an iframe. The iframe receives a 5-minute, plugin-scoped JWT via `postMessage` and can call the permission-limited `/api/plugin/v1/*` API. Disabling a plugin revokes access on the next request. A working example lives in [`examples/remote-plugin`](examples/remote-plugin).
 
@@ -267,7 +267,7 @@ plugins/          admin/i18n, payments/{manual,stripe,paypal}, notifications/ema
 examples/         remote-plugin developer example
 themes/           8 bundled themes
 brand/            CloudCart icon masters and generated favicon/app icons
-migrations/       10 D1 migrations
+migrations/       11 D1 migrations
 scripts/          deploy CLI, icon generation, jsDelivr media publishing
 tests/            workerd integration tests
 docs/             architecture, plugin/theme/payment/deployment/security/testing docs
@@ -281,7 +281,7 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design, order sta
 
 **v0.5.0 — functional, not yet declared 1.0.** The repository is honest about what works and what does not.
 
-Implemented and tested: setup/login/CSRF, products/categories/media, drag-reordered product images, server cart, guest checkout, stock reservation, tax calculation (inclusive/exclusive, country/region rules), manual payment, order fulfilment, 8 themes, page editor draft/preview/publish with version restore, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, email notifications with a D1 outbox and provider retries, hybrid bundled/remote plugins with iframe admin pages, short-lived plugin JWTs, HMAC service calls, remote payment adapters, local media uploads to R2 or jsDelivr with encrypted credentials, a scoped API-key admin CLI for agents, 119 workerd tests, 21 CLI Node tests, and 12 Playwright browser tests (13 including setup).
+Implemented and tested: setup/login/CSRF, products/categories/media, drag-reordered product images, server cart, guest checkout, stock reservation, tax calculation (inclusive/exclusive, country/region rules), manual payment, order fulfilment, 8 themes, page editor draft/preview/publish with version restore, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, email notifications with a D1 outbox and provider retries, hybrid bundled/remote plugins with iframe admin pages, short-lived plugin JWTs, HMAC service calls, remote payment adapters, local media uploads to R2 or jsDelivr with encrypted credentials, a scoped API-key admin CLI for agents, 127 workerd tests, 21 CLI Node tests, and 12 Playwright browser tests (13 including setup).
 
 Not yet verified or missing:
 - A live Stripe Sandbox checkout was verified on 2026-11-11 with test card `4242 4242 4242 4242` (order `CC-20261111-SDFVBC`); PayPal Sandbox credentials are still to be supplied. Automated provider tests remain mocked.

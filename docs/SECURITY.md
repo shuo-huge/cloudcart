@@ -102,7 +102,11 @@ Admin mutations require:
   action; `restocked_at`, a claim token and an inventory-movement check prevent concurrent or legacy
   double restocks.
 - Email dispatch claims rows with a time-bound lock; concurrent dispatchers cannot send the same
-  message twice.
+  message twice. The cron handler uses the same dispatcher and backoff.
+- Returns are admin-only, bounded by the ordered quantity minus previous returns, and every restock
+  writes an inventory movement. A return does not refund money by itself.
+- The cron handler only runs inside the deployed Worker; it has no public HTTP route and only
+  expires unpaid online orders and dispatches configured email.
 - Only draft/pending-payment orders may create or retry a payment checkout; cancelled, refunded and
   fulfilled orders stay closed.
 

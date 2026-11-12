@@ -207,7 +207,7 @@ pnpm cloudcart products images attach PRODUCT_ID --image-url https://example.com
 首页、分类、搜索、商品详情、购物车、结账、订单确认、内容页全部服务端渲染。内置 Meta 标签、Canonical、Open Graph、Twitter Card、商品/面包屑/网站 JSON-LD、`sitemap.xml`、`robots.txt`、301 重定向。不依赖 JavaScript 也能被抓取商品名称和描述。
 
 ### 后台
-Dashboard、商品与规格、分类、本地上传到 R2 或 jsDelivr（外链为高级选项）、可拖拽排序的商品图片、订单、客户、优惠券、配送区域与运费、税率、主题、支持版本回滚的可视化页面编辑器、插件、邮件通知与发件箱、支付配置、媒体库、店铺设置、SEO 重定向、审计日志、资源用量估算。
+Dashboard、商品与规格、分类、本地上传到 R2 或 jsDelivr（外链为高级选项）、可拖拽排序的商品图片、订单、按商品登记退货并可选回补库存、未付款订单自动关闭、客户、优惠券、配送区域与运费、税率、主题、支持版本回滚的可视化页面编辑器、插件、邮件通知与定时重试发件箱、支付配置、媒体库、店铺设置、SEO 重定向、审计日志、资源用量估算。
 
 ### 交易核心
 每次结账都在服务端重新校验价格、库存、优惠、运费和税费。金额使用整数最小货币单位，保存订单快照，库存使用条件更新与补偿机制，订单状态机显式约束，人工确认收款记录管理员和时间，支持手动填写物流单号。税费支持国家/地区税率规则、默认税率，以及含税价/不含税价；税费计入订单总额并自动同步到支付金额。
@@ -230,7 +230,7 @@ Default、Fashion、Beauty、Electronics、Jewelry、Home、Sports、Single Prod
 支付密钥使用由 `APP_MASTER_KEY` 派生的 AES-GCM 密钥加密，永远不会返回浏览器。
 
 ### 插件
-内置插件构建时打包、运行时启停，设置保存在 D1；未打包进当前 Worker 的内置插件无法启用。内置：Manual、Stripe、PayPal、**Admin Language Pack**（English / 简体中文），以及 **Email Notifications**（Resend 或 Cloudflare Email Workers，D1 发件箱、失败重试和后台日志；默认关闭）。
+内置插件构建时打包、运行时启停，设置保存在 D1；未打包进当前 Worker 的内置插件无法启用。内置：Manual、Stripe、PayPal、**Admin Language Pack**（English / 简体中文），以及 **Email Notifications**（Resend 或 Cloudflare Email Workers，D1 发件箱、定时失败重试和后台日志；默认关闭）。
 
 **远程插件**通过 Manifest URL 安装，无需重新构建 Worker。插件代码和后台页面运行在插件作者自己的 HTTPS 服务上；CloudCart 只保存 Manifest 并调用签名 API。启用的远程插件会自动在后台左侧添加菜单，并通过 iframe 打开。iframe 通过 `postMessage` 获得 5 分钟、按插件限权的 JWT，可调用 `/api/plugin/v1/*` 受限 API；禁用后下一次请求立即失效。完整示例见 [`examples/remote-plugin`](examples/remote-plugin)。
 
@@ -266,7 +266,7 @@ plugins/          admin/i18n、payments/{manual,stripe,paypal}、notifications/e
 examples/         remote-plugin 远程插件示例
 themes/           8 套内置主题
 brand/            CloudCart 图标母版与生成后的 favicon/App icon
-migrations/       10 个 D1 迁移
+migrations/       11 个 D1 迁移
 scripts/          部署 CLI、图标生成、jsDelivr 图片发布
 tests/            workerd 集成测试
 docs/             架构、插件、主题、支付、部署、安全、测试文档
@@ -280,7 +280,7 @@ docs/             架构、插件、主题、支付、部署、安全、测试�
 
 **v0.5.0 — 功能可用，但尚未宣称 1.0。** 已实现和未实现的事项都明确列出。
 
-已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、内置/远程混合插件与 iframe 后台、短期插件 JWT、HMAC 服务调用、远程支付适配器、R2/jsDelivr 本地上传与加密凭据、面向智能体的 API Key 管理 CLI、119 个 workerd 测试、21 个 CLI Node 测试、12 个 Playwright 浏览器测试（含 setup 共 13 个）。
+已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、内置/远程混合插件与 iframe 后台、短期插件 JWT、HMAC 服务调用、远程支付适配器、R2/jsDelivr 本地上传与加密凭据、面向智能体的 API Key 管理 CLI、127 个 workerd 测试、21 个 CLI Node 测试、12 个 Playwright 浏览器测试（含 setup 共 13 个）。
 
 未验证或尚未完成：
 - 已于 2026-11-11 使用测试卡 `4242 4242 4242 4242` 完成真实 Stripe Sandbox 支付验证（订单 `CC-20261111-SDFVBC`）；PayPal Sandbox 账号仍待补充。自动化测试中的支付接口仍使用 mock。

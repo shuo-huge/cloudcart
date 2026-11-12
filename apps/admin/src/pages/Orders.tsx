@@ -15,7 +15,7 @@ import {
   useAsync,
 } from "../components";
 import { linkProps, navigate } from "../router";
-import type { Order, OrderAddress, OrderItem, PaymentTransaction } from "../types";
+import type { Order, OrderAddress, OrderItem, OrderReturn, PaymentTransaction } from "../types";
 
 const STATUSES = [
   "draft", "pending_payment", "awaiting_manual_payment", "paid", "processing",
@@ -116,10 +116,16 @@ const TRANSITIONS: Record<string, string[]> = {
 
 export function OrderDetailPage({ id }: { id: string }) {
   const { data, loading, error, reload } = useAsync(() => adminGet<OrderDetailData>(`/orders/${id}`), [id]);
+  const returns = useAsync(() => adminGet<OrderReturn[]>(`/orders/${id}/returns`), [id]);
   const [nextStatus, setNextStatus] = useState("");
   const [note, setNote] = useState("");
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundAmount, setRefundAmount] = useState("");
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returnRestock, setReturnRestock] = useState(true);
+  const [returnReason, setReturnReason] = useState("");
+  const [returnNote, setReturnNote] = useState("");
+  const [returnQuantities, setReturnQuantities] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [carrier, setCarrier] = useState("");
   const [trackingNumber, setTrackingNumber] = useState("");
@@ -159,6 +165,36 @@ export function OrderDetailPage({ id }: { id: string }) {
     order.refunded_cents < order.total_cents;
   const onlineRefund = Boolean(order.payment_method && order.payment_method !== "manual");
   const providerName = order.payment_method ? enumLabel(order.payment_method) : "the payment provider";
+  const returnedByItem = new Map<string, number>();
+  for (const entry of returns.data ?? []) {
+    for (const item of entry.items) {
+      returnedByItem.set(item.order_item_id, (returnedByItem.get(item.order_item_id) ?? 0) + item.quantity);
+    }
+  }
+
+  async function recordReturn(): Promise<void> {
+    const items = Object.entries(returnQuantities)
+      .map(([orderItemId, quantity]) => ({ orderItemId, quantity: Number(quantity) }))
+      .filter((item) => Number.isSafeInteger(item.quantity) && item.quantity > 0);
+    if (items.length === 0) {
+      toast("Enter a return quantity for at least one item.", "error");
+      return;
+    }
+    await run(
+      () => adminSend(`/orders/${id}/returns`, "POST", {
+        items,
+        restock: returnRestock,
+        reason: returnReason,
+        note: returnNote,
+      }),
+      "Return recorded.",
+    );
+    setReturnOpen(false);
+    setReturnQuantities({});
+    setReturnReason("");
+    setReturnNote("");
+    returns.reload();
+  }
 
   return (
     <div class="page">
@@ -337,6 +373,34 @@ export function OrderDetailPage({ id }: { id: string }) {
               </button>
             )}
           </section>
+
+          <section class="card">
+            <div class="card-header">
+              <h2>Returns</h2>
+              {items.some((item) => item.quantity > (returnedByItem.get(item.id) ?? 0)) && (
+                <button type="button" class="button button--small" onClick={() => setReturnOpen(true)}>Record return</button>
+              )}
+            </div>
+            {returns.error && <p class="error-text">{returns.error}</p>}
+            {(returns.data ?? []).length === 0 ? (
+              <p class="muted small">No returns recorded.</p>
+            ) : (
+              <ul class="plain-list">
+                {(returns.data ?? []).map((entry) => (
+                  <li key={entry.return.id}>
+                    <div>
+                      <strong>{formatDate(entry.return.created_at)}</strong>
+                      <span class="muted small"> · {entry.return.restock ? "Restocked" : "Not restocked"}</span>
+                    </div>
+                    <div class="muted small">
+                      {entry.items.map((item) => `${item.name} × ${item.quantity}`).join(", ")}
+                    </div>
+                    {entry.return.reason && <div class="muted small">{entry.return.reason}</div>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </aside>
       </div>
 
@@ -362,6 +426,50 @@ export function OrderDetailPage({ id }: { id: string }) {
               ).then(() => setRefundOpen(false))}
             >
               {onlineRefund ? "Refund payment" : "Record refund"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {returnOpen && (
+        <Modal title="Record return" onClose={() => setReturnOpen(false)}>
+          <p class="muted">Enter the quantity received for each item. Restocking is optional.</p>
+          <div class="stack">
+            {items.map((item) => {
+              const remaining = item.quantity - (returnedByItem.get(item.id) ?? 0);
+              if (remaining <= 0) return null;
+              return (
+                <label class="field" key={item.id}>
+                  <span class="field-label">{item.name} <span class="muted small">({remaining} available)</span></span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={remaining}
+                    placeholder="0"
+                    value={returnQuantities[item.id] ?? ""}
+                    onInput={(event) => {
+                      const value = (event.target as HTMLInputElement).value;
+                      setReturnQuantities({ ...returnQuantities, [item.id]: value });
+                    }}
+                  />
+                </label>
+              );
+            })}
+          </div>
+          <label class="checkbox">
+            <input type="checkbox" checked={returnRestock} onChange={(event) => setReturnRestock((event.target as HTMLInputElement).checked)} />
+            Restock returned items
+          </label>
+          <Field label="Return reason">
+            <input value={returnReason} maxLength={500} onInput={(event) => setReturnReason((event.target as HTMLInputElement).value)} />
+          </Field>
+          <Field label="Internal note">
+            <textarea rows={3} value={returnNote} maxLength={5000} onInput={(event) => setReturnNote((event.target as HTMLTextAreaElement).value)} />
+          </Field>
+          <div class="modal-actions">
+            <button type="button" class="button" onClick={() => setReturnOpen(false)}>Cancel</button>
+            <button type="button" class="button button--primary" disabled={busy} onClick={() => void recordReturn()}>
+              Record return
             </button>
           </div>
         </Modal>

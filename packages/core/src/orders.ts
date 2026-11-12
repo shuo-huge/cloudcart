@@ -567,10 +567,19 @@ export async function cancelOrderAndRestock(db: Database, orderId: string): Prom
       [orderId],
     );
     if (existingRestock) {
-      await db.run(
-        "UPDATE orders SET restocked_at = COALESCE(cancelled_at, updated_at, ?) WHERE id = ? AND restocked_at IS NULL",
-        [now, orderId],
-      );
+      await db.batch([
+        db.prepare(
+          "UPDATE orders SET restocked_at = COALESCE(cancelled_at, updated_at, ?) WHERE id = ? AND restocked_at IS NULL",
+          [now, orderId],
+        ),
+        // Legacy cancellations may not have released their coupon usage.
+        db.prepare(
+          `UPDATE coupons SET used_count = MAX(0, used_count - 1), updated_at = ?
+           WHERE id = (SELECT coupon_id FROM coupon_redemptions WHERE order_id = ?)`,
+          [now, orderId],
+        ),
+        db.prepare("DELETE FROM coupon_redemptions WHERE order_id = ?", [orderId]),
+      ]);
       return { ok: true };
     }
   }
@@ -605,6 +614,16 @@ export async function cancelOrderAndRestock(db: Database, orderId: string): Prom
       [newId("inv"), item.product_id, item.variant_id, item.quantity, orderId, now, orderId, claimToken, now],
     ));
   }
+  statements.push(db.prepare(
+    `UPDATE coupons SET used_count = MAX(0, used_count - 1), updated_at = ?
+     WHERE id = (SELECT coupon_id FROM coupon_redemptions WHERE order_id = ?)
+       AND EXISTS ${claimed}`,
+    [now, orderId, orderId, claimToken, now],
+  ));
+  statements.push(db.prepare(
+    `DELETE FROM coupon_redemptions WHERE order_id = ? AND EXISTS ${claimed}`,
+    [orderId, orderId, claimToken, now],
+  ));
   statements.push(db.prepare(
     `UPDATE orders SET status = 'cancelled', cancelled_at = COALESCE(cancelled_at, ?), updated_at = ?
      WHERE id = ? AND restock_token = ? AND restocked_at = ?`,

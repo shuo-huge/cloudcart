@@ -227,6 +227,28 @@ export interface OrderItemRow {
   created_at: string;
 }
 
+export interface OrderReturnRow {
+  id: string;
+  order_id: string;
+  status: "recorded";
+  reason: string | null;
+  note: string | null;
+  restock: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderReturnItemRow {
+  id: string;
+  return_id: string;
+  order_item_id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  quantity: number;
+  created_at: string;
+}
+
 export interface OrderAddressRow {
   id: string;
   order_id: string;

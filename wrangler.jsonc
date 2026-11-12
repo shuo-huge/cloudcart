@@ -18,6 +18,9 @@
       "migrations_dir": "migrations"
     }
   ],
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
   "vars": {
     "APP_ENV": "production",
     "STORE_NAME": "CloudCart",

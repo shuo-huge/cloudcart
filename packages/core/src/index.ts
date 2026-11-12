@@ -14,6 +14,8 @@ export * from "./tax";
 export * from "./cart";
 export * from "./orders";
 export * from "./refunds";
+export * from "./returns";
+export * from "./maintenance";
 export * from "./payments";
 export * from "./payment-events";
 export * from "./email";

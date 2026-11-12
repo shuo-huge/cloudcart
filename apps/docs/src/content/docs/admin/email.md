@@ -43,6 +43,10 @@ CloudCart 内置 **Email Notifications** 插件，默认关闭。
 
 然后在 Email 设置中选择 `Cloudflare Email Workers`。
 
+## 测试投递
+
+保存设置并启用插件后，在 **Emails → Test delivery** 填写收件地址，点击 **Send test email**。CloudCart 会使用当前 Resend 或 Cloudflare 通道真实发送一封测试邮件。
+
 ## 发件箱
 
 **后台 → Emails** 下半部分显示发件箱：
@@ -52,7 +56,7 @@ CloudCart 内置 **Email Notifications** 插件，默认关闭。
 - Sent：已发送
 - Failed：失败
 
-失败会记录错误并按 1、5、15、60、360 分钟退避重试。没有 cron，重试由下一次订单事件或手动点击 **Process queue / Retry failed** 触发。
+失败会记录错误并按 1、5、15、60、360 分钟退避重试。Worker 每 5 分钟的定时任务会自动处理到期重试；也可以在下一次订单事件或手动点击 **Process queue / Retry failed** 时触发。
 
 ## 安全
 

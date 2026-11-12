@@ -23,6 +23,7 @@ const BOOLEAN_FLAGS = new Set([
   "insecure",
   "password-stdin",
   "external",
+  "restock",
 ]);
 
 const REPEATABLE_FLAGS = new Set([
@@ -34,6 +35,7 @@ const REPEATABLE_FLAGS = new Set([
   "image-file",
   "header",
   "query",
+  "item",
 ]);
 
 export const KNOWN_FLAGS = new Set([
@@ -94,6 +96,7 @@ export const KNOWN_FLAGS = new Set([
   "payment-status",
   "note",
   "notes",
+  "reason",
   "notes-file",
   "carrier",
   "tracking-number",
@@ -138,6 +141,9 @@ export const KNOWN_FLAGS = new Set([
   "output",
   "storage",
   "external",
+  "restock",
+  "item",
+  "reason",
 ]);
 
 const SHORT_FLAGS = new Map([
