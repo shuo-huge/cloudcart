@@ -6,6 +6,7 @@ import {
   getOrderDetail,
   getOrCreateCart,
   isEmailNotificationsEnabled,
+  isOrderPayable,
   isPaymentMethodEnabled,
   loadPaymentRuntimeConfig,
   parseOrderAccessToken,
@@ -397,7 +398,7 @@ async function orderConfirmationBody(
       : paymentQuery === "pending"
         ? `<div class="cc-notice">Payment is pending confirmation from the provider.</div>`
         : "";
-  const retryForm = order.payment_method !== "manual" && order.payment_status !== "paid"
+  const retryForm = order.payment_method !== "manual" && order.payment_status !== "paid" && isOrderPayable(order)
     ? `<form method="post" action="${escapeHtml(runtime.path)}/pay" style="margin-top:14px">
          <button class="cc-button cc-button--block" type="submit">Retry payment</button>
        </form>`

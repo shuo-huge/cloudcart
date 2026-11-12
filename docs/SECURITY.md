@@ -87,9 +87,17 @@ Admin mutations require:
 - Stripe signature verified over the raw body with a 5-minute tolerance and constant-time compare.
 - PayPal webhooks verified through PayPal’s verification API.
 - Amount and currency checked against the order before `paid`.
-- Unique `(plugin_id, event_id)` makes processing idempotent.
+- Unique `(plugin_id, event_id)` makes processing idempotent. The event marker and every state change
+  are written in one D1 batch, and an unprocessed marker is retried rather than skipped.
+- Refund events validate the remaining refundable balance, record the provider refund id at most once,
+  and never apply a duplicate or cumulative callback twice.
+- Only paid orders can be refunded; the server checks this before calling a provider refund API.
 - Administrators cannot mark Stripe/PayPal orders paid.
 - Manual confirmations record admin id and timestamp.
+- Cancellation restores stock through one idempotent path for both the status menu and the cancel
+  action; `restocked_at` and a claim token prevent concurrent double restocks.
+- Only draft/pending-payment orders may create or retry a payment checkout; cancelled, refunded and
+  fulfilled orders stay closed.
 
 ## Remote plugins
 

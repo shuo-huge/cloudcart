@@ -104,10 +104,15 @@ Provider ──► /webhooks/{stripe|paypal}
              3. Resolve the internal order (metadata / provider order id → transaction)
              4. INSERT OR IGNORE payment_events (unique plugin+event id)
              5. Compare amount and currency with the order
-             6. Atomically mark transaction succeeded + order paid
+             6. Atomically mark transaction succeeded + order paid + processed marker
 ```
-Duplicated deliveries return `result: "duplicate"` and change nothing. Amount/currency mismatches are
-recorded and never mark an order paid. Cancelled/refunded orders stay closed.
+Duplicated deliveries return `result: "duplicate"` and change nothing. If an earlier delivery only
+inserted the event marker, the next delivery retries it instead of skipping it. Amount/currency
+mismatches are recorded and never mark an order paid. Cancelled/refunded orders stay closed.
+
+Refund events are validated separately from payments: the cumulative refunded amount (or a per-refund
+delta when the provider reports deltas) cannot exceed the order total, each provider refund id is
+recorded at most once, and duplicate refund callbacks do not change `refunded_cents`.
 
 PayPal’s return URL captures server-side, then feeds the **same** event pipeline with a capture event.
 
@@ -153,10 +158,17 @@ the admin id and timestamp in `payment_transactions` and the audit log. Fulfilme
 (`shipping_carrier`, `tracking_number`, `tracking_url`) are edited by the administrator and shown on
 the customer’s order page.
 
+Both the status menu’s `cancelled` transition and the explicit cancel action use the same
+`cancelOrderAndRestock` path. `orders.restocked_at` plus a per-request claim token make the restock
+idempotent: repeated or concurrent cancels restore stock once, and legacy cancelled orders without a
+restock are repaired on the next cancel attempt. Closed and already-paid orders cannot create a new
+payment checkout.
+
 ## 5. Data model (D1)
 
 Migrations: `0001_init.sql`, `0002_cart_fields.sql`, `0003_order_fulfilment.sql`,
-`0004_tax_and_email.sql`, `0005_remote_plugins.sql`, `0006_api_keys.sql`, `0007_media_storage.sql`.
+`0004_tax_and_email.sql`, `0005_remote_plugins.sql`, `0006_api_keys.sql`, `0007_media_storage.sql`,
+`0008_order_restock.sql`.
 
 Tables: `admins`, `admin_sessions`, `admin_api_keys`, `installation_state`, `store_settings`, `products`,
 `product_variants`, `product_images`, `categories`, `product_categories`, `product_tags`,

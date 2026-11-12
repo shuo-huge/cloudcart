@@ -11,7 +11,7 @@ One Worker · One D1 database · Local uploads to R2 or jsDelivr · Optional ext
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![D1](https://img.shields.io/badge/Database-D1-0051FF)](https://developers.cloudflare.com/d1/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-106%20passing-brightgreen)](docs/TEST_REPORT.md)
+[![Tests](https://img.shields.io/badge/tests-112%20passing-brightgreen)](docs/TEST_REPORT.md)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Architecture](docs/ARCHITECTURE.md) · [Deployment](docs/DEPLOYMENT.md)
 
@@ -267,7 +267,7 @@ plugins/          admin/i18n, payments/{manual,stripe,paypal}, notifications/ema
 examples/         remote-plugin developer example
 themes/           8 bundled themes
 brand/            CloudCart icon masters and generated favicon/app icons
-migrations/       7 D1 migrations
+migrations/       8 D1 migrations
 scripts/          deploy CLI, icon generation, jsDelivr media publishing
 tests/            workerd integration tests
 docs/             architecture, plugin/theme/payment/deployment/security/testing docs
@@ -281,7 +281,7 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full design, order sta
 
 **v0.5.0 — functional, not yet declared 1.0.** The repository is honest about what works and what does not.
 
-Implemented and tested: setup/login/CSRF, products/categories/media, drag-reordered product images, server cart, guest checkout, stock reservation, tax calculation (inclusive/exclusive, country/region rules), manual payment, order fulfilment, 8 themes, page editor draft/preview/publish with version restore, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, email notifications with a D1 outbox and provider retries, hybrid bundled/remote plugins with iframe admin pages, short-lived plugin JWTs, HMAC service calls, remote payment adapters, local media uploads to R2 or jsDelivr with encrypted credentials, a scoped API-key admin CLI for agents, 106 workerd tests, 21 CLI Node tests, and 12 Playwright browser tests (13 including setup).
+Implemented and tested: setup/login/CSRF, products/categories/media, drag-reordered product images, server cart, guest checkout, stock reservation, tax calculation (inclusive/exclusive, country/region rules), manual payment, order fulfilment, 8 themes, page editor draft/preview/publish with version restore, Stripe signature + idempotency, PayPal order/capture/webhook verification, admin language pack, email notifications with a D1 outbox and provider retries, hybrid bundled/remote plugins with iframe admin pages, short-lived plugin JWTs, HMAC service calls, remote payment adapters, local media uploads to R2 or jsDelivr with encrypted credentials, a scoped API-key admin CLI for agents, 112 workerd tests, 21 CLI Node tests, and 12 Playwright browser tests (13 including setup).
 
 Not yet verified or missing:
 - A live Stripe Sandbox checkout was verified on 2026-11-11 with test card `4242 4242 4242 4242` (order `CC-20261111-SDFVBC`); PayPal Sandbox credentials are still to be supplied. Automated provider tests remain mocked.

@@ -1,6 +1,6 @@
 # Test Report
 
-**Date:** 2026-11-11
+**Date:** 2026-11-12
 **Environment:** Windows 10, Node.js 24.18.0, pnpm 12.16.1, Wrangler 4.158.0,
 Vitest 4.1.12, `@cloudflare/vitest-plugin` 1.6.0 (workerd; real D1 binding),
 Playwright 1.65.0 (Chromium 1254).
@@ -16,7 +16,7 @@ passing without its output.
 |---|---|
 | `pnpm install` | dependencies installed (26 workspace projects) |
 | `pnpm typecheck` (`tsc --noEmit`) | **passed**, no diagnostics |
-| `pnpm test` | **17 test files, 106 tests passed**, ~8 s |
+| `pnpm test` | **17 test files, 112 tests passed**, ~8 s |
 | `pnpm test:cli` | **6 test files, 21 tests passed**, ~0.4 s |
 | `pnpm build` | storefront + admin built; asset references regenerated |
 | `pnpm test:e2e` | **13 Playwright tests passed** (1 setup + 12 browser), ~31 s |
@@ -63,11 +63,18 @@ this session.
   restoring a version that does not belong to another page returns 404; old snapshots stay immutable.
 - Admin language pack enable/disable, translations and switcher payload.
 
-### `tests/payments.test.ts` (5 tests)
+### `tests/payments.test.ts` (11 tests)
 - Stripe signature verification (valid, wrong secret, stale/missing timestamp).
 - Stripe Checkout creation (mocked) and signed `checkout.session.completed` marks the order paid.
 - Duplicate Stripe event → `duplicate`, one event row, one succeeded transaction.
 - Invalid signature → HTTP 400; amount mismatch → recorded, order unpaid.
+- Partial and cumulative refunds update `refunded_cents` correctly; duplicate and out-of-range
+  refund callbacks are rejected without changing the order.
+- A redelivered event whose `processed_at` marker was lost is retried instead of skipped.
+- Refunds on unpaid orders are rejected by the server before any provider call.
+- Cancel via the status endpoint restores stock exactly once; repeated and concurrent cancels do
+  not double-restock.
+- A cancelled order cannot create a new payment checkout.
 - PayPal OAuth/order creation, return capture, webhook verification through PayPal's API (mocked).
 
 ### `tests/setup-page.test.ts` (3 tests)
@@ -154,7 +161,7 @@ this session.
 ## 3. Playwright browser coverage
 
 `pnpm test:e2e` builds the app, resets a dedicated local D1 directory (`.wrangler/e2e`), applies all
-seven migrations, starts a local mock remote plugin on `127.0.0.1:8788` and a local GitHub mock on
+eight migrations, starts a local mock remote plugin on `127.0.0.1:8788` and a local GitHub mock on
 `127.0.0.1:8789`, boots `wrangler dev` on `127.0.0.1:8787` with the test-only insecure-origin flag,
 and seeds the store through the one-time setup token. Specs (11 files, 13 tests):
 

@@ -226,6 +226,8 @@ class PayPalPaymentPlugin implements PaymentPlugin {
         orderId: null,
         providerOrderId,
         providerTransactionId,
+        // PayPal's refund resource id is unique per refund and is a delta amount.
+        providerRefundId: providerTransactionId,
         amountCents: cents,
         currency,
         rawType,

@@ -170,12 +170,22 @@ class StripePaymentPlugin implements PaymentPlugin {
     }
     if (type === "charge.refunded") {
       const refunded = Number(object.amount_refunded ?? 0);
+      const refunds = (object.refunds as {
+        data?: Array<{ id?: string; created?: number }>;
+      } | undefined)?.data ?? [];
+      const latestRefund = refunds.reduce<{ id?: string; created?: number } | undefined>(
+        (latest, current) => (current.created ?? 0) > (latest?.created ?? -1) ? current : latest,
+        undefined,
+      );
       return {
         eventId,
         type: "refund",
         orderId,
         providerOrderId,
         providerTransactionId: paymentIntent,
+        providerRefundId: latestRefund?.id ?? null,
+        // Stripe reports the cumulative refunded amount on the charge.
+        refundedTotalCents: refunded,
         amountCents: refunded,
         currency,
         rawType: type,

@@ -736,7 +736,16 @@ adminRoutes.post("/orders/:id/refund", async (c) => {
     }
     const detail = await getOrderDetail(db(c), c.req.param("id"));
     if (!detail) throw new HttpError(404, "order_not_found", "Order not found.");
+    if (!["paid", "partially_refunded"].includes(detail.order.payment_status)) {
+      throw new HttpError(409, "refund_unpaid", "Only paid orders can be refunded.");
+    }
+    const previousRefundedCents = detail.order.refunded_cents;
+    if (amountCents <= 0 || amountCents > detail.order.total_cents - previousRefundedCents) {
+      throw new HttpError(400, "invalid_amount", "The refund amount exceeds the remaining balance.");
+    }
+
     const method = detail.order.payment_method ?? "";
+    let providerRefundId: string | undefined;
     if (method !== "manual") {
       const plugin = await resolvePaymentPlugin(db(c), c.env.APP_MASTER_KEY, method, { includeDisabled: true });
       if (!plugin?.refund) throw new HttpError(400, "refund_unsupported", "This payment method does not support refunds.");
@@ -760,10 +769,14 @@ adminRoutes.post("/orders/:id/refund", async (c) => {
       if (!refund.ok) {
         throw new HttpError(502, "refund_failed", refund.message ?? "The payment provider rejected the refund.");
       }
+      providerRefundId = refund.providerRefundId;
     }
-    const result = await recordManualRefund(db(c), c.req.param("id"), amountCents, c.get("adminId"));
+    const result = await recordManualRefund(db(c), c.req.param("id"), amountCents, c.get("adminId"), {
+      providerRefundId,
+      previousRefundedCents,
+    });
     if (!result.ok) throw new HttpError(409, "cannot_refund", result.message);
-    await audit(c, "order.refunded", "order", c.req.param("id"), { amountCents });
+    await audit(c, "order.refunded", "order", c.req.param("id"), { amountCents, providerRefundId: providerRefundId ?? null });
     await queueOrderEmail(c, "order.refunded", c.req.param("id"), { refundAmountCents: amountCents });
     return c.json({ ok: true });
   } catch (error) {
