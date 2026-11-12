@@ -1,6 +1,7 @@
 import type { Database } from "@cloudcart/database";
 import type { ShippingRateRow, ShippingZoneRow } from "@cloudcart/database";
-import { HttpError, newId, nowIso } from "@cloudcart/shared";
+import { HttpError, newId, nowIso, parseMoneyInput } from "@cloudcart/shared";
+import { getSetting, SETTING_KEYS } from "./settings";
 import { z } from "zod";
 
 export const shippingZoneInputSchema = z.object({
@@ -31,11 +32,13 @@ export interface ZoneWithRates extends ShippingZoneRow {
   rates: ShippingRateRow[];
 }
 
-function parseAmount(value: string | null | undefined, field: string): number | null {
+function parseAmount(value: string | null | undefined, field: string, currency: string): number | null {
   if (value === null || value === undefined || value.trim() === "") return null;
-  const n = Number(value.replace(/,/g, ""));
-  if (!Number.isFinite(n) || n < 0) throw new HttpError(400, "invalid_amount", `Invalid ${field}.`);
-  return Math.round(n * 100);
+  try {
+    return parseMoneyInput(value, currency);
+  } catch {
+    throw new HttpError(400, "invalid_amount", `Invalid ${field}.`);
+  }
 }
 
 export async function listZones(db: Database): Promise<ZoneWithRates[]> {
@@ -140,6 +143,7 @@ export async function deleteZone(db: Database, id: string): Promise<void> {
 export async function createRate(db: Database, input: z.infer<typeof shippingRateInputSchema>): Promise<string> {
   const zone = await db.first<{ id: string }>("SELECT id FROM shipping_zones WHERE id = ?", [input.zoneId]);
   if (!zone) throw new HttpError(400, "invalid_zone", "Shipping zone not found.");
+  const currency = await getSetting(db, SETTING_KEYS.storeCurrency, "USD");
   const id = newId("rate");
   const now = nowIso();
   await db.run(
@@ -147,10 +151,10 @@ export async function createRate(db: Database, input: z.infer<typeof shippingRat
        is_active, position, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      id, input.zoneId, input.name.trim(), parseAmount(input.price, "price") ?? 0,
-      parseAmount(input.minOrder, "minimum order") ?? 0,
-      parseAmount(input.maxOrder, "maximum order"),
-      parseAmount(input.freeOver, "free shipping threshold"),
+      id, input.zoneId, input.name.trim(), parseAmount(input.price, "price", currency) ?? 0,
+      parseAmount(input.minOrder, "minimum order", currency) ?? 0,
+      parseAmount(input.maxOrder, "maximum order", currency),
+      parseAmount(input.freeOver, "free shipping threshold", currency),
       input.isActive ? 1 : 0, input.position, now, now,
     ],
   );
@@ -158,14 +162,15 @@ export async function createRate(db: Database, input: z.infer<typeof shippingRat
 }
 
 export async function updateRate(db: Database, id: string, input: z.infer<typeof shippingRateInputSchema>): Promise<void> {
+  const currency = await getSetting(db, SETTING_KEYS.storeCurrency, "USD");
   const result = await db.run(
     `UPDATE shipping_rates SET name = ?, price_cents = ?, min_order_cents = ?, max_order_cents = ?,
        free_over_cents = ?, is_active = ?, position = ?, updated_at = ? WHERE id = ?`,
     [
-      input.name.trim(), parseAmount(input.price, "price") ?? 0,
-      parseAmount(input.minOrder, "minimum order") ?? 0,
-      parseAmount(input.maxOrder, "maximum order"),
-      parseAmount(input.freeOver, "free shipping threshold"),
+      input.name.trim(), parseAmount(input.price, "price", currency) ?? 0,
+      parseAmount(input.minOrder, "minimum order", currency) ?? 0,
+      parseAmount(input.maxOrder, "maximum order", currency),
+      parseAmount(input.freeOver, "free shipping threshold", currency),
       input.isActive ? 1 : 0, input.position, nowIso(), id,
     ],
   );

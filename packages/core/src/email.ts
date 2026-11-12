@@ -266,8 +266,12 @@ export async function dispatchEmailOutbox(
     const claimed = await db.run(
       `UPDATE email_outbox
        SET status = 'sending', locked_at = ?, attempts = attempts + 1, updated_at = ?
-       WHERE id = ? AND attempts < max_attempts AND status IN ('pending', 'sending')`,
-      [nowValue, nowValue, row.id],
+       WHERE id = ? AND attempts < max_attempts
+         AND (
+           (status = 'pending' AND next_attempt_at <= ?)
+           OR (status = 'sending' AND locked_at IS NOT NULL AND locked_at <= ?)
+         )`,
+      [nowValue, nowValue, row.id, nowValue, staleBefore],
     );
     if (!claimed.meta.changes) continue;
 
@@ -285,21 +289,24 @@ export async function dispatchEmailOutbox(
       sent += 1;
       await db.run(
         `UPDATE email_outbox SET status = 'sent', sent_at = ?, provider = ?, provider_message_id = ?,
-           last_error = NULL, locked_at = NULL, updated_at = ? WHERE id = ?`,
-        [nowValue, transport.name, result.providerMessageId ?? null, nowValue, row.id],
+           last_error = NULL, locked_at = NULL, updated_at = ?
+         WHERE id = ? AND status = 'sending' AND locked_at = ?`,
+        [nowValue, transport.name, result.providerMessageId ?? null, nowValue, row.id, nowValue],
       );
     } else {
       failed += 1;
       const exhausted = attempts >= row.max_attempts;
       await db.run(
         `UPDATE email_outbox SET status = ?, next_attempt_at = ?, locked_at = NULL,
-           last_error = ?, updated_at = ? WHERE id = ?`,
+           last_error = ?, updated_at = ?
+         WHERE id = ? AND status = 'sending' AND locked_at = ?`,
         [
           exhausted ? "failed" : "pending",
           exhausted ? row.next_attempt_at : nextAttemptIso(attempts, now),
           result.error.slice(0, 500),
           nowValue,
           row.id,
+          nowValue,
         ],
       );
     }

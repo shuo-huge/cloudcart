@@ -61,7 +61,7 @@ Requirements:
 - Partial and cumulative refund callbacks are checked against the remaining balance; duplicate
   callbacks are not applied twice.
 
-Refunds do not delete orders or transaction records.
+Refunds update payment status and the refunded amount only; they do not change fulfilment status, so a partially refunded order can still be shipped. Refunds do not delete orders or transaction records.
 
 ## Remote payment plugins
 

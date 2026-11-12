@@ -87,13 +87,15 @@ The Worker composes concrete plugins/themes at its edge (`plugin-registry.ts`, `
 ### Guest checkout (atomicity)
 1. Re-load and validate the cart from D1 (active products, variant validity, stock, coupon rules,
    shipping rate for the destination).
-2. Reserve the coupon usage with a conditional `UPDATE … WHERE used_count < max_uses`.
-3. Reserve stock with conditional `UPDATE … WHERE stock >= quantity` per managed line. If any line
+2. Atomically claim the cart with `carts.checkout_order_id` / `checkout_started_at`. A second
+   concurrent checkout gets `409 checkout_in_progress`; a stale claim expires after five minutes.
+3. Reserve the coupon usage with a conditional `UPDATE … WHERE used_count < max_uses`.
+4. Reserve stock with conditional `UPDATE … WHERE stock >= quantity` per managed line. If any line
    fails, already-reserved stock is compensated and the order is refused.
-4. Insert order, item snapshots, address snapshots, coupon redemption, inventory movements, customer
+5. Insert order, item snapshots, address snapshots, coupon redemption, inventory movements, customer
    aggregates, and delete the cart — in one atomic D1 batch. On batch failure, stock and coupon
    reservations are compensated.
-5. Manual payment → `awaiting_manual_payment`. Online provider → `pending_payment` and a provider
+6. Manual payment → `awaiting_manual_payment`. Online provider → `pending_payment` and a provider
    session is created; the customer is redirected to the provider.
 
 ### Payment events
@@ -112,7 +114,10 @@ mismatches are recorded and never mark an order paid. Cancelled/refunded orders 
 
 Refund events are validated separately from payments: the cumulative refunded amount (or a per-refund
 delta when the provider reports deltas) cannot exceed the order total, each provider refund id is
-recorded at most once, and duplicate refund callbacks do not change `refunded_cents`.
+recorded at most once, and duplicate refund callbacks do not change `refunded_cents`. The refund
+transaction and the order balance update are one atomic conditional batch, so concurrent refunds
+accumulate instead of overwriting each other. A late payment-success event cannot mark an order paid
+after any refund has been recorded.
 
 PayPal’s return URL captures server-side, then feeds the **same** event pipeline with a capture event.
 
@@ -123,6 +128,8 @@ PayPal’s return URL captures server-side, then feeds the **same** event pipeli
   `waitUntil`; provider latency or failure never blocks checkout.
 - Failed rows use exponential backoff (1, 5, 15, 60, 360 minutes). There is no cron trigger: due rows
   are retried by the next order event or by the admin “Process queue” / “Retry failed” actions.
+- Dispatch atomically claims a row (`status = 'sending'`, `locked_at`) and only reclaims a stale lock
+  after five minutes, so two dispatchers cannot send the same message.
 - The admin log never returns stored HTML/text bodies.
 
 ### Hybrid plugins (bundled + remote)
@@ -158,8 +165,9 @@ the admin id and timestamp in `payment_transactions` and the audit log. Fulfilme
 (`shipping_carrier`, `tracking_number`, `tracking_url`) are edited by the administrator and shown on
 the customer’s order page.
 
-Both the status menu’s `cancelled` transition and the explicit cancel action use the same
-`cancelOrderAndRestock` path. `orders.restocked_at` plus a per-request claim token make the restock
+Order `status` tracks fulfilment; refunds update `payment_status` and `refunded_cents` only, so a
+partially refunded order can still move to processing/shipped/completed. Both the status menu’s
+`cancelled` transition and the explicit cancel action use the same `cancelOrderAndRestock` path. `orders.restocked_at` plus a per-request claim token make the restock
 idempotent: repeated or concurrent cancels restore stock once, and legacy cancelled orders without a
 restock are repaired on the next cancel attempt. Closed and already-paid orders cannot create a new
 payment checkout.
@@ -168,7 +176,7 @@ payment checkout.
 
 Migrations: `0001_init.sql`, `0002_cart_fields.sql`, `0003_order_fulfilment.sql`,
 `0004_tax_and_email.sql`, `0005_remote_plugins.sql`, `0006_api_keys.sql`, `0007_media_storage.sql`,
-`0008_order_restock.sql`.
+`0008_order_restock.sql`, `0009_checkout_and_refund_safety.sql`, `0010_refund_status_separation.sql`.
 
 Tables: `admins`, `admin_sessions`, `admin_api_keys`, `installation_state`, `store_settings`, `products`,
 `product_variants`, `product_images`, `categories`, `product_categories`, `product_tags`,

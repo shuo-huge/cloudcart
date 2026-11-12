@@ -161,6 +161,8 @@ export interface CartRow {
   currency: string;
   coupon_code: string | null;
   shipping_rate_id: string | null;
+  checkout_order_id: string | null;
+  checkout_started_at: string | null;
   created_at: string;
   updated_at: string;
 }

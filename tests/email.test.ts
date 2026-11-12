@@ -169,6 +169,34 @@ describe("email notifications", () => {
     expect(events.map((row) => row.event)).toEqual(["order.placed", "payment.confirmed", "order.shipped"]);
   });
 
+  it("does not send the same queued message twice when dispatchers race", async () => {
+    const client = createClient();
+    await client.ensureSession();
+    await enableEmail(client);
+    await client.json("/api/admin/settings", "PUT", { settings: { "store.email": "" } }, client.csrfHeaders());
+    await checkoutOrder(client, "concurrent-email@example.com");
+
+    const sent: OutgoingEmail[] = [];
+    const transport: EmailTransport = {
+      name: "fake",
+      async send(message) {
+        sent.push(message);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        return { ok: true, providerMessageId: "msg_concurrent" };
+      },
+    };
+    const [first, second] = await Promise.all([
+      dispatchEmailOutbox(database(), transport, { from: "store@example.com" }),
+      dispatchEmailOutbox(database(), transport, { from: "store@example.com" }),
+    ]);
+    expect(sent).toHaveLength(1);
+    expect(first.sent + second.sent).toBe(1);
+    const row = await database().first<{ status: string; attempts: number }>(
+      "SELECT status, attempts FROM email_outbox ORDER BY created_at DESC LIMIT 1",
+    );
+    expect(row).toEqual({ status: "sent", attempts: 1 });
+  });
+
   it("supports the Cloudflare Email Workers binding", async () => {
     const captured: Array<{ to: string; subject: string }> = [];
     const binding = {

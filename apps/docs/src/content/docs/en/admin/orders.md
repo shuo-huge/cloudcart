@@ -43,7 +43,7 @@ The order state machine is enforced by the server; invalid transitions are not a
 
 ## Cancelling an order
 
-Cancelling an order automatically returns the reserved inventory. The `cancelled` status option and the **Cancel order & restock** button use the same restock path; repeated or concurrent cancels only restore stock once. Whether a paid order can be cancelled depends on its current status. Cancelled, refunded and fulfilled orders cannot start a new payment.
+Cancelling an order automatically returns the reserved inventory. The `cancelled` status option and the **Cancel order & restock** button use the same restock path; repeated or concurrent cancels only restore stock once. Whether a paid order can be cancelled depends on its current status. Refunds are tracked in the payment status and refunded amount and do not block fulfilment; a partially refunded order can still be shipped or completed. Cancelled, refunded and fulfilled orders cannot start a new payment.
 
 ## Refunds
 

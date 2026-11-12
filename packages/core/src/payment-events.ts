@@ -3,6 +3,7 @@ import type { OrderRow, PaymentTransactionRow } from "@cloudcart/database";
 import type { PaymentEvent } from "@cloudcart/plugin-sdk";
 import { HttpError, newId, nowIso } from "@cloudcart/shared";
 import { auditLogStatement } from "./audit";
+import { applyRefund } from "./refunds";
 
 export type PaymentEventResult = "processed" | "duplicate" | "ignored" | "mismatch" | "closed";
 
@@ -115,7 +116,9 @@ export async function processPaymentEvent(
         event.currency.toUpperCase() !== order.currency.toUpperCase()) {
       return finish("amount_mismatch", "mismatch", "The provider amount does not match the order total.");
     }
-    if (["cancelled", "refunded"].includes(order.status)) {
+    if (["cancelled", "refunded"].includes(order.status) ||
+        ["refunded", "partially_refunded"].includes(order.payment_status) ||
+        order.refunded_cents > 0) {
       return finish("order_closed", "closed", "The order is no longer payable.");
     }
 
@@ -148,7 +151,10 @@ export async function processPaymentEvent(
     }
     statements.push(db.prepare(
       `UPDATE orders SET payment_status = 'paid', status = 'paid', paid_at = ?, updated_at = ?
-       WHERE id = ? AND payment_status <> 'paid' AND status NOT IN ('cancelled', 'refunded')`,
+       WHERE id = ?
+         AND payment_status NOT IN ('paid', 'partially_refunded', 'refunded')
+         AND refunded_cents = 0
+         AND status NOT IN ('cancelled', 'refunded')`,
       [now, now, order.id],
     ));
     statements.push(auditLogStatement(db, {
@@ -184,69 +190,61 @@ export async function processPaymentEvent(
   }
 
   if (event.type === "refund") {
-    const cumulativeTarget = event.refundedTotalCents;
-    if (!Number.isSafeInteger(event.amountCents) || event.amountCents <= 0 ||
-        event.currency.toUpperCase() !== order.currency.toUpperCase()) {
+    if (event.currency.toUpperCase() !== order.currency.toUpperCase()) {
+      return finish("refund_mismatch", "mismatch", "The refund currency does not match the order.");
+    }
+    if (event.refundedTotalCents !== undefined &&
+        (!Number.isSafeInteger(event.refundedTotalCents) ||
+         event.refundedTotalCents < 0 ||
+         event.refundedTotalCents > order.total_cents)) {
+      return finish("refund_mismatch", "mismatch", "The refund total does not match the order total.");
+    }
+
+    const delta = event.refundAmountCents !== undefined
+      ? event.refundAmountCents
+      : event.refundedTotalCents !== undefined
+        ? Math.max(0, event.refundedTotalCents - order.refunded_cents)
+        : event.amountCents;
+    if (!Number.isSafeInteger(delta) || delta < 0) {
       return finish("refund_mismatch", "mismatch", "The refund event is invalid.");
     }
-
-    let target: number;
-    if (cumulativeTarget !== undefined) {
-      if (!Number.isSafeInteger(cumulativeTarget) || cumulativeTarget < 0 || cumulativeTarget > order.total_cents) {
-        return finish("refund_mismatch", "mismatch", "The refund total does not match the order total.");
-      }
-      target = Math.max(order.refunded_cents, cumulativeTarget);
-    } else {
-      target = order.refunded_cents + event.amountCents;
-      if (target > order.total_cents) {
-        return finish("refund_mismatch", "mismatch", "The refund exceeds the amount paid.");
-      }
-    }
-
-    if (target <= order.refunded_cents) {
+    if (delta === 0) {
       return finish("duplicate_refund", "duplicate");
     }
 
     const refundProviderId = event.providerRefundId || `refund-event:${event.eventId}`;
-    const existingRefund = await db.first<{ id: string }>(
-      "SELECT id FROM payment_transactions WHERE plugin_id = ? AND provider_id = ?",
-      [pluginId, refundProviderId],
-    );
-    if (existingRefund) {
+    const applied = await applyRefund(db, {
+      orderId: order.id,
+      pluginId,
+      amountCents: delta,
+      providerRefundId: refundProviderId,
+      providerStatus: event.rawType.slice(0, 120),
+      metadata: {
+        eventId: event.eventId,
+        providerTransactionId: event.providerTransactionId,
+        providerOrderId: event.providerOrderId,
+        cumulativeRefundedCents: event.refundedTotalCents ?? null,
+      },
+    });
+    if (!applied.ok) {
+      return finish("refund_mismatch", "mismatch", applied.message);
+    }
+    if (applied.duplicate) {
       return finish("duplicate_refund", "duplicate");
     }
-
-    const delta = target - order.refunded_cents;
-    const fully = target >= order.total_cents;
-    return finalize([
-      db.prepare(
-        `UPDATE orders SET refunded_cents = ?, payment_status = ?, status = ?, updated_at = ? WHERE id = ?`,
-        [target, fully ? "refunded" : "partially_refunded",
-          fully ? "refunded" : "partially_refunded", now, order.id],
-      ),
-      db.prepare(
-        `INSERT INTO payment_transactions (id, order_id, plugin_id, provider_id, status, amount_cents, currency,
-           provider_status, metadata_json, created_at, updated_at, paid_at)
-         VALUES (?, ?, ?, ?, 'refunded', ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          newId("txn"), order.id, pluginId, refundProviderId,
-          delta, order.currency, event.rawType.slice(0, 120),
-          JSON.stringify({
-            providerTransactionId: event.providerTransactionId,
-            providerOrderId: event.providerOrderId,
-            cumulativeRefundedCents: target,
-          }),
-          now, now, now,
-        ],
-      ),
-      auditLogStatement(db, {
-        adminId: null,
-        action: "payment.refunded",
-        entityType: "order",
-        entityId: order.id,
-        details: { plugin: pluginId, eventId: event.eventId, amountCents: delta, refundedCents: target },
-      }),
-    ], "refunded");
+    await auditLogStatement(db, {
+      adminId: null,
+      action: "payment.refunded",
+      entityType: "order",
+      entityId: order.id,
+      details: {
+        plugin: pluginId,
+        eventId: event.eventId,
+        amountCents: delta,
+        refundedCents: applied.refundedCents,
+      },
+    }).run();
+    return finish("refunded", "processed");
   }
 
   return finish("pending", "processed");

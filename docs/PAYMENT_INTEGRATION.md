@@ -112,6 +112,12 @@ and call the provider; manual orders show **Record refund** and only write a loc
   `refunded_cents`.
 - Refund transactions use the provider refund id when available (or an event-scoped id otherwise), so
   repeated partial-refund callbacks are applied at most once.
+- The refund transaction and the order balance update are one conditional atomic batch, so concurrent
+  refunds accumulate instead of overwriting each other.
+- Refunds update `payment_status` and `refunded_cents` only. The order `status` remains the fulfilment
+  state, so a partially refunded order can still be shipped or completed.
+- A late payment-success callback for an order with any refund is recorded as closed and cannot change
+  it back to `paid`.
 
 Refund webhooks (`charge.refunded`, `PAYMENT.CAPTURE.REFUNDED`) also update the order through the
 event pipeline.

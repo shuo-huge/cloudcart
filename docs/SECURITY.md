@@ -90,12 +90,19 @@ Admin mutations require:
 - Unique `(plugin_id, event_id)` makes processing idempotent. The event marker and every state change
   are written in one D1 batch, and an unprocessed marker is retried rather than skipped.
 - Refund events validate the remaining refundable balance, record the provider refund id at most once,
-  and never apply a duplicate or cumulative callback twice.
+  and never apply a duplicate or cumulative callback twice. Concurrent refunds update the balance in
+  one conditional batch, and a late payment-success event cannot overwrite a refunded payment state.
+- Checkout atomically claims the cart before reserving stock; a concurrent request cannot create a
+  second order from the same cart.
+- Refund state is stored in `payment_status`/`refunded_cents`, separate from fulfilment `status`.
 - Only paid orders can be refunded; the server checks this before calling a provider refund API.
 - Administrators cannot mark Stripe/PayPal orders paid.
 - Manual confirmations record admin id and timestamp.
 - Cancellation restores stock through one idempotent path for both the status menu and the cancel
-  action; `restocked_at` and a claim token prevent concurrent double restocks.
+  action; `restocked_at`, a claim token and an inventory-movement check prevent concurrent or legacy
+  double restocks.
+- Email dispatch claims rows with a time-bound lock; concurrent dispatchers cannot send the same
+  message twice.
 - Only draft/pending-payment orders may create or retry a payment checkout; cancelled, refunded and
   fulfilled orders stay closed.
 
