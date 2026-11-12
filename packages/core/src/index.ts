@@ -13,6 +13,7 @@ export * from "./shipping";
 export * from "./tax";
 export * from "./cart";
 export * from "./orders";
+export * from "./refunds";
 export * from "./payments";
 export * from "./payment-events";
 export * from "./email";

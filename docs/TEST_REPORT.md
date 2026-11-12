@@ -16,7 +16,7 @@ passing without its output.
 |---|---|
 | `pnpm install` | dependencies installed (26 workspace projects) |
 | `pnpm typecheck` (`tsc --noEmit`) | **passed**, no diagnostics |
-| `pnpm test` | **17 test files, 112 tests passed**, ~8 s |
+| `pnpm test` | **18 test files, 119 tests passed**, ~8 s |
 | `pnpm test:cli` | **6 test files, 21 tests passed**, ~0.4 s |
 | `pnpm build` | storefront + admin built; asset references regenerated |
 | `pnpm test:e2e` | **13 Playwright tests passed** (1 setup + 12 browser), ~31 s |
@@ -63,7 +63,7 @@ this session.
   restoring a version that does not belong to another page returns 404; old snapshots stay immutable.
 - Admin language pack enable/disable, translations and switcher payload.
 
-### `tests/payments.test.ts` (11 tests)
+### `tests/payments.test.ts` (16 tests)
 - Stripe signature verification (valid, wrong secret, stale/missing timestamp).
 - Stripe Checkout creation (mocked) and signed `checkout.session.completed` marks the order paid.
 - Duplicate Stripe event → `duplicate`, one event row, one succeeded transaction.
@@ -81,6 +81,10 @@ this session.
 - Setup token is a hidden field; store name/currency are optional at first run; token values are
   HTML-escaped.
 
+### `tests/shipping.test.ts` (1 test)
+- Shipping rate amounts use the store currency exponent (JPY `500` is stored as 500 minor units, not
+  50,000).
+
 ### `tests/tax.test.ts` (10 tests)
 - Exclusive tax on `subtotal − discount + shipping`; inclusive tax extracted without changing the
   total; zero rates; discount reduces the taxable base.
@@ -89,13 +93,14 @@ this session.
 - Checkout integration: exclusive 8.25% rate persisted on the order (`413` cents on `5000`),
   region override (`725` bps), inclusive rate leaves the total unchanged.
 
-### `tests/email.test.ts` (6 tests)
+### `tests/email.test.ts` (7 tests)
 - Disabled plugin queues nothing.
 - Order placement queues a customer message; dispatch marks it sent and stores the provider message id.
 - Store copy is queued when `store.email` is configured and `notifyAdmin` is enabled.
 - Provider failure records attempts/error, schedules a backoff, and a later dispatch retries successfully.
 - Manual payment confirmation and shipment status each enqueue the matching event.
 - Cloudflare Email Workers binding transport sends through a fake `SendEmail` binding.
+- Concurrent dispatchers cannot send the same outbox row twice.
 
 ### `tests/products.test.ts` (4 tests)
 - Reordering persists dense positions and changes the product's cover image.
@@ -161,7 +166,7 @@ this session.
 ## 3. Playwright browser coverage
 
 `pnpm test:e2e` builds the app, resets a dedicated local D1 directory (`.wrangler/e2e`), applies all
-eight migrations, starts a local mock remote plugin on `127.0.0.1:8788` and a local GitHub mock on
+ten migrations, starts a local mock remote plugin on `127.0.0.1:8788` and a local GitHub mock on
 `127.0.0.1:8789`, boots `wrangler dev` on `127.0.0.1:8787` with the test-only insecure-origin flag,
 and seeds the store through the one-time setup token. Specs (11 files, 13 tests):
 
@@ -223,8 +228,8 @@ A production deployment was tested with Stripe test keys and card `4242 4242 424
   deployment intentionally has no `MEDIA` binding, so a real multipart upload to R2 was not run.
 - **Real GitHub/jsDelivr upload.** jsDelivr uploads are tested against a local GitHub API mock; no
   real GitHub PAT was used in CI.
-- **Concurrent checkout race stress.** Conditional stock updates and compensation are implemented and
-  reviewed, but not stress-tested under parallel load.
+- **Load-level concurrency stress.** Basic concurrent checkout, cancellation, refund and email
+  dispatcher races are covered; sustained parallel load and Cloudflare D1 queue limits are not.
 - **Cloudflare quota behaviour.** Cannot be simulated with free-tier account limits in tests.
 - **Authenticated visual regression.** Playwright asserts layout/selectors, not pixel screenshots.
 - **A real third-party remote plugin service.** The Playwright suite uses a local HTTP mock allowed

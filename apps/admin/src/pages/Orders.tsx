@@ -152,7 +152,8 @@ export function OrderDetailPage({ id }: { id: string }) {
   const { order, items, addresses, transactions, logs } = data;
   const shipping = addresses.find((address) => address.type === "shipping");
   const activeTransitions = TRANSITIONS[order.status] ?? [];
-  const canConfirm = order.payment_method === "manual" && order.payment_status !== "paid" &&
+  const canConfirm = order.payment_method === "manual" &&
+    !["paid", "refunded", "partially_refunded"].includes(order.payment_status) &&
     !["cancelled", "refunded", "partially_refunded"].includes(order.status);
   const canRefund = ["paid", "partially_refunded"].includes(order.payment_status) &&
     order.refunded_cents < order.total_cents;
@@ -243,7 +244,7 @@ export function OrderDetailPage({ id }: { id: string }) {
             >
               Update status
             </button>
-            {order.status !== "cancelled" && !["shipped", "completed", "refunded", "partially_refunded"].includes(order.status) && (
+            {order.status !== "cancelled" && order.payment_status !== "refunded" && !["shipped", "completed", "refunded", "partially_refunded"].includes(order.status) && (
               <button
                 type="button"
                 class="button button--danger button--block"

@@ -45,6 +45,8 @@ export interface PaymentEvent {
   providerTransactionId: string | null;
   /** Provider refund id. Unique per refund; used to deduplicate callbacks. */
   providerRefundId?: string | null;
+  /** Amount of this individual refund, when the provider exposes it. */
+  refundAmountCents?: number;
   /**
    * Total refunded on the transaction after this event, when the provider
    * reports a cumulative total (for example Stripe `charge.refunded`).

@@ -99,6 +99,7 @@ export async function getOrCreateCart(
     cart: {
       id, token: tokenHash, customer_id: null, currency,
       coupon_code: null, shipping_rate_id: null,
+      checkout_order_id: null, checkout_started_at: null,
       created_at: now, updated_at: now,
     },
     newToken,
