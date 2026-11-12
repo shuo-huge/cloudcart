@@ -16,7 +16,7 @@ passing without its output.
 |---|---|
 | `pnpm install` | dependencies installed (26 workspace projects) |
 | `pnpm typecheck` (`tsc --noEmit`) | **passed**, no diagnostics |
-| `pnpm test` | **18 test files, 119 tests passed**, ~8 s |
+| `pnpm test` | **20 test files, 127 tests passed**, ~8 s |
 | `pnpm test:cli` | **6 test files, 21 tests passed**, ~0.4 s |
 | `pnpm build` | storefront + admin built; asset references regenerated |
 | `pnpm test:e2e` | **13 Playwright tests passed** (1 setup + 12 browser), ~31 s |
@@ -63,7 +63,7 @@ this session.
   restoring a version that does not belong to another page returns 404; old snapshots stay immutable.
 - Admin language pack enable/disable, translations and switcher payload.
 
-### `tests/payments.test.ts` (16 tests)
+### `tests/payments.test.ts` (17 tests)
 - Stripe signature verification (valid, wrong secret, stale/missing timestamp).
 - Stripe Checkout creation (mocked) and signed `checkout.session.completed` marks the order paid.
 - Duplicate Stripe event → `duplicate`, one event row, one succeeded transaction.
@@ -76,10 +76,21 @@ this session.
   not double-restock.
 - A cancelled order cannot create a new payment checkout.
 - PayPal OAuth/order creation, return capture, webhook verification through PayPal's API (mocked).
+- The admin PayPal credential test exchanges an OAuth token through a mocked PayPal endpoint.
 
 ### `tests/setup-page.test.ts` (3 tests)
 - Setup token is a hidden field; store name/currency are optional at first run; token values are
   HTML-escaped.
+
+### `tests/returns.test.ts` (3 tests)
+- Records a return with restock, verifies stock and the `return_restock` inventory movement.
+- Rejects quantities above the ordered quantity.
+- Records a return without restocking and leaves stock unchanged.
+
+### `tests/maintenance.test.ts` (3 tests)
+- Expires a stale online order, restores stock, releases coupon usage and writes an expiry audit entry.
+- Leaves manual-payment orders untouched.
+- Exercises the cron handler for order expiry and skipped email delivery.
 
 ### `tests/shipping.test.ts` (1 test)
 - Shipping rate amounts use the store currency exponent (JPY `500` is stored as 500 minor units, not
@@ -93,7 +104,7 @@ this session.
 - Checkout integration: exclusive 8.25% rate persisted on the order (`413` cents on `5000`),
   region override (`725` bps), inclusive rate leaves the total unchanged.
 
-### `tests/email.test.ts` (7 tests)
+### `tests/email.test.ts` (8 tests)
 - Disabled plugin queues nothing.
 - Order placement queues a customer message; dispatch marks it sent and stores the provider message id.
 - Store copy is queued when `store.email` is configured and `notifyAdmin` is enabled.
@@ -101,6 +112,8 @@ this session.
 - Manual payment confirmation and shipment status each enqueue the matching event.
 - Cloudflare Email Workers binding transport sends through a fake `SendEmail` binding.
 - Concurrent dispatchers cannot send the same outbox row twice.
+- The cron handler calls the same retry dispatcher for due/failed rows.
+- The admin test-email endpoint sends through the configured Resend transport (mocked).
 
 ### `tests/products.test.ts` (4 tests)
 - Reordering persists dense positions and changes the product's cover image.
@@ -166,7 +179,7 @@ this session.
 ## 3. Playwright browser coverage
 
 `pnpm test:e2e` builds the app, resets a dedicated local D1 directory (`.wrangler/e2e`), applies all
-ten migrations, starts a local mock remote plugin on `127.0.0.1:8788` and a local GitHub mock on
+eleven migrations, starts a local mock remote plugin on `127.0.0.1:8788` and a local GitHub mock on
 `127.0.0.1:8789`, boots `wrangler dev` on `127.0.0.1:8787` with the test-only insecure-origin flag,
 and seeds the store through the one-time setup token. Specs (11 files, 13 tests):
 

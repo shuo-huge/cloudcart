@@ -56,6 +56,17 @@ State (including generated secrets) is written to `.cloudcart/deploy.json`, whic
 Re-running the script is safe: it reuses resources and secrets and does not overwrite data. It never
 changes your Cloudflare plan.
 
+### Scheduled maintenance
+
+`wrangler.jsonc` includes a Cloudflare cron trigger (`*/5 * * * *`). The Worker scheduled handler:
+
+- cancels online orders that remain `pending_payment` for more than 60 minutes, restoring stock and
+  releasing coupon usage;
+- dispatches due email outbox rows using the configured provider and retry backoff.
+
+No separate cron service, queue, or paid plan is required. Deploying the Worker with `wrangler deploy`
+registers or updates the trigger.
+
 ### What “one-time setup link” means
 
 The deployment log prints a private URL such as `https://<worker>/setup?token=<one-time-token>`. Open that link directly. CloudCart fills the hidden setup token automatically, so the installer only enters the administrator name, email and password. The token is never displayed as a separate field.

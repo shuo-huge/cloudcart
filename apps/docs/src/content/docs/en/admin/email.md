@@ -43,6 +43,10 @@ You need:
 
 Then select `Cloudflare Email Workers` in the Email settings.
 
+## Test delivery
+
+After saving and enabling the plugin, enter a recipient under **Emails → Test delivery** and click **Send test email**. CloudCart sends a real message through the configured Resend or Cloudflare transport.
+
 ## Outbox
 
 The lower part of **Admin → Emails** shows the outbox:
@@ -52,7 +56,7 @@ The lower part of **Admin → Emails** shows the outbox:
 - Sent: sent
 - Failed: failed
 
-Failures record the error and are retried with backoff after 1, 5, 15, 60 and 360 minutes. There is no cron; retries are triggered by the next order event or by manually clicking **Process queue / Retry failed**.
+Failures record the error and are retried with backoff after 1, 5, 15, 60 and 360 minutes. The Worker cron runs every 5 minutes and processes due retries automatically; the next order event or **Process queue / Retry failed** can also trigger them.
 
 ## Security
 

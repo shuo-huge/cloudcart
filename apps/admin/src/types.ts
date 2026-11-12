@@ -117,6 +117,31 @@ export interface OrderAddress {
   email: string | null;
 }
 
+export interface OrderReturnItem {
+  id: string;
+  return_id: string;
+  order_item_id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  quantity: number;
+  name: string;
+  sku: string | null;
+}
+
+export interface OrderReturn {
+  return: {
+    id: string;
+    order_id: string;
+    status: string;
+    reason: string | null;
+    note: string | null;
+    restock: number;
+    created_by: string | null;
+    created_at: string;
+  };
+  items: OrderReturnItem[];
+}
+
 export interface PaymentTransaction {
   id: string;
   plugin_id: string;

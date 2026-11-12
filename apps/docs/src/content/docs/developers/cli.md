@@ -136,6 +136,8 @@ pnpm cloudcart blog create \
 ```bash
 pnpm cloudcart orders list --json
 pnpm cloudcart orders ship ORDER_ID --carrier UPS --tracking-number 1Z...
+pnpm cloudcart orders returns ORDER_ID --json
+pnpm cloudcart orders return ORDER_ID --item ORDER_ITEM_ID:1 --restock --yes --json
 pnpm cloudcart coupons create --code SAVE10 --type percent --value 10 --json
 pnpm cloudcart tax create --name "CA tax" --country US --region CA --rate-percent 8.25
 ```

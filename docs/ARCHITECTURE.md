@@ -121,6 +121,22 @@ after any refund has been recorded.
 
 PayPal’s return URL captures server-side, then feeds the **same** event pipeline with a capture event.
 
+### Scheduled maintenance
+- `wrangler.jsonc` runs the Worker every 5 minutes.
+- `expireStaleOrders` cancels `pending_payment` orders older than 60 minutes, restores stock,
+  releases coupon usage and writes an `order.expired` audit entry. Manual-payment orders are left
+  for the administrator to confirm or cancel.
+- The same scheduled run dispatches due and failed email outbox rows using the existing backoff and
+  lock logic. Order expiry and email delivery are isolated so one failure does not block the other.
+
+### Returns
+- `order_returns` records the reason, note and whether stock was restored; `order_return_items`
+  records the order item and quantity. Returned quantities cannot exceed the ordered quantity minus
+  previous returns.
+- When restocking is selected, stock is incremented and an `inventory_movements` row with reason
+  `return_restock` is written in the same D1 batch. Returns do not move money; refunds remain a
+  separate action.
+
 ### Email notifications
 - The bundled `email-notifications` plugin is disabled by default. It supports Resend (HTTP API) and
   Cloudflare Email Workers (optional `EMAIL` `send_email` binding).
@@ -176,7 +192,7 @@ payment checkout.
 
 Migrations: `0001_init.sql`, `0002_cart_fields.sql`, `0003_order_fulfilment.sql`,
 `0004_tax_and_email.sql`, `0005_remote_plugins.sql`, `0006_api_keys.sql`, `0007_media_storage.sql`,
-`0008_order_restock.sql`, `0009_checkout_and_refund_safety.sql`, `0010_refund_status_separation.sql`.
+`0008_order_restock.sql`, `0009_checkout_and_refund_safety.sql`, `0010_refund_status_separation.sql`, `0011_order_returns.sql`.
 
 Tables: `admins`, `admin_sessions`, `admin_api_keys`, `installation_state`, `store_settings`, `products`,
 `product_variants`, `product_images`, `categories`, `product_categories`, `product_tags`,

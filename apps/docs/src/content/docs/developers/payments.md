@@ -78,7 +78,7 @@ refund?
 
 ## 测试
 
-支付服务商 API 在自动化测试中使用 mock。Stripe Sandbox 已于 2026-11-11 使用测试卡完成真实支付与 webhook 验证；PayPal Sandbox 仍待补充，上线前请用 Sandbox 账号完整走一遍。
+支付服务商 API 在自动化测试中使用 mock。Stripe Sandbox 已于 2026-11-11 使用测试卡完成真实支付与 webhook 验证；PayPal Sandbox 仍待补充。填写 PayPal 凭据后，可在后台 PayPal 卡片点击 **Test PayPal** 验证 Client ID / Secret 是否能换取 OAuth token，再用 Sandbox 账号完成一次支付。
 
 ## 安全建议
 

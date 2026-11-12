@@ -197,6 +197,34 @@ describe("email notifications", () => {
     expect(row).toEqual({ status: "sent", attempts: 1 });
   });
 
+  it("sends a test email through the admin endpoint", async () => {
+    const client = createClient();
+    await client.ensureSession();
+    await enableEmail(client);
+    const original = globalThis.fetch;
+    const calls: string[] = [];
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      calls.push(url);
+      return new Response(JSON.stringify({ id: "email_test_1" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as typeof fetch;
+    try {
+      const response = await client.json(
+        "/api/admin/plugins/email-notifications/test",
+        "POST",
+        { to: "test-recipient@example.com" },
+        client.csrfHeaders(),
+      );
+      expect(response.status).toBe(200);
+      expect(calls.some((url) => url === "https://api.resend.com/emails")).toBe(true);
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
   it("supports the Cloudflare Email Workers binding", async () => {
     const captured: Array<{ to: string; subject: string }> = [];
     const binding = {

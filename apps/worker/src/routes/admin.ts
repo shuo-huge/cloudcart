@@ -27,6 +27,8 @@ import {
   getCustomer,
   getDashboardStats,
   getOrderDetail,
+  listOrderReturns,
+  createOrderReturn,
   getPage,
   getPluginSettings,
   getRemotePluginRow,
@@ -49,6 +51,7 @@ import {
   listZones,
   loadStoreConfig,
   loadPaymentRuntimeConfig,
+  loadPluginRuntimeConfig,
   publishPage,
   redirectInputSchema,
   registerThemes,
@@ -96,6 +99,13 @@ import {
   deleteContentPage,
   writeAuditLog,
 } from "@cloudcart/core";
+import {
+  EMAIL_PLUGIN_ID,
+  createEmailTransport,
+  emailFromAddress,
+  normalizeEmailConfig,
+  validateEmailConfig,
+} from "@cloudcart/plugin-email-notifications";
 import { FREE_TIER_LIMITS, ResourceGuard } from "@cloudcart/database";
 import { HttpError, newId, normalizeOrderStatus, nowIso, parseMoneyInput } from "@cloudcart/shared";
 import { Hono, type Context } from "hono";
@@ -619,6 +629,37 @@ adminRoutes.get("/orders/:id", async (c) => {
       [detail.order.id],
     );
     return c.json({ ok: true, data: { ...detail, logs } });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.get("/orders/:id/returns", async (c) => {
+  try {
+    return c.json({ ok: true, data: await listOrderReturns(db(c), c.req.param("id")) });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/orders/:id/returns", async (c) => {
+  try {
+    const body = parse(z.object({
+      items: z.array(z.object({
+        orderItemId: z.string().min(1).max(120),
+        quantity: z.coerce.number().int().min(1).max(10_000),
+      })).min(1).max(100),
+      restock: z.boolean().default(false),
+      reason: z.string().trim().max(500).optional().default(""),
+      note: z.string().trim().max(5000).optional().default(""),
+    }), await readJson(c));
+    const created = await createOrderReturn(db(c), c.req.param("id"), body, c.get("adminId"));
+    await audit(c, "order.return_recorded", "order", c.req.param("id"), {
+      returnId: created.return.id,
+      items: body.items.length,
+      restock: body.restock,
+    });
+    return c.json({ ok: true, data: created }, 201);
   } catch (error) {
     return fail(c, error);
   }
@@ -1296,6 +1337,63 @@ adminRoutes.put("/plugins/:id/settings", async (c) => {
     await setPluginSettings(db(c), c.req.param("id"), body.settings, c.env.APP_MASTER_KEY, body.secretKeys);
     await audit(c, "plugin.settings_updated", "plugin", c.req.param("id"));
     return c.json({ ok: true });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/plugins/paypal/test", async (c) => {
+  try {
+    const config = await loadPluginRuntimeConfig(db(c), "paypal", c.env.APP_MASTER_KEY);
+    if (!config.clientId || !config.clientSecret) {
+      throw new HttpError(400, "paypal_not_configured", "Enter the PayPal client ID and secret first.");
+    }
+    const base = config.mode === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
+    const response = await fetch(`${base}/v1/oauth2/token`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${btoa(`${config.clientId}:${config.clientSecret}`)}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "grant_type=client_credentials",
+    });
+    if (!response.ok) {
+      throw new HttpError(502, "paypal_test_failed", "PayPal rejected the credentials.");
+    }
+    const body = (await response.json().catch(() => ({}))) as { access_token?: string };
+    if (!body.access_token) throw new HttpError(502, "paypal_test_failed", "PayPal did not return an access token.");
+    return c.json({ ok: true, data: { ok: true, message: "PayPal credentials accepted." } });
+  } catch (error) {
+    return fail(c, error);
+  }
+});
+
+adminRoutes.post("/plugins/email-notifications/test", async (c) => {
+  try {
+    const body = parse(z.object({ to: z.string().trim().email().max(254) }), await readJson(c));
+    if (!(await isEmailNotificationsEnabled(db(c)))) {
+      throw new HttpError(409, "email_disabled", "Enable email notifications before sending a test.");
+    }
+    const config = normalizeEmailConfig(
+      await loadPluginRuntimeConfig(db(c), EMAIL_PLUGIN_ID, c.env.APP_MASTER_KEY),
+    );
+    const validation = validateEmailConfig(config, { hasEmailBinding: Boolean(c.env.EMAIL) });
+    if (!validation.ok) {
+      throw new HttpError(400, "email_not_configured", validation.errors?.[0] ?? "Email is not configured.");
+    }
+    const transport = createEmailTransport(config, { emailBinding: c.env.EMAIL });
+    const result = await transport.send({
+      from: emailFromAddress(config),
+      to: body.to,
+      subject: "CloudCart test email",
+      html: "<p>CloudCart email delivery is working.</p>",
+      text: "CloudCart email delivery is working.",
+    });
+    if (!result.ok) {
+      throw new HttpError(502, "email_test_failed", result.error ?? "The email provider rejected the test.");
+    }
+    await audit(c, "email.test_sent", "email", body.to);
+    return c.json({ ok: true, data: { ok: true, message: "Test email sent." } });
   } catch (error) {
     return fail(c, error);
   }

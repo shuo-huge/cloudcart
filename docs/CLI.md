@@ -182,6 +182,9 @@ pnpm cloudcart orders ship ORDER_ID --carrier NAME --tracking-number NUMBER [--t
 pnpm cloudcart orders note ORDER_ID --note TEXT
 pnpm cloudcart orders cancel ORDER_ID --yes
 pnpm cloudcart orders refund ORDER_ID --amount 12.34 --yes
+pnpm cloudcart orders returns ORDER_ID
+pnpm cloudcart orders return ORDER_ID --item ORDER_ITEM_ID:QTY [--item ...] \
+  [--restock] [--reason TEXT] [--note TEXT] --yes
 
 pnpm cloudcart customers list|get|notes
 pnpm cloudcart coupons list|get|create|update|delete

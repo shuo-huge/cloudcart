@@ -105,6 +105,37 @@ export async function ordersRefund(ctx) {
   return { data, message: `Refunded ${amount} for order ${id}.` };
 }
 
+export async function ordersReturns(ctx) {
+  const id = requirePositional(ctx.args, 0, "order id");
+  const client = ctx.requireClient();
+  return { data: unwrap(await client.requestJson("GET", `/api/admin/orders/${encodeURIComponent(id)}/returns`)) };
+}
+
+export async function ordersReturn(ctx) {
+  requireConfirmation(ctx.flags, "Recording an order return");
+  const id = requirePositional(ctx.args, 0, "order id");
+  const raw = flagList(ctx.flags, "item");
+  if (raw.length === 0) throw usageError("Pass at least one --item ORDER_ITEM_ID:QTY.");
+  const items = raw.map((entry) => {
+    const [orderItemId, quantityRaw, ...rest] = entry.split(":");
+    const quantity = Number(quantityRaw);
+    if (!orderItemId || rest.length > 0 || !Number.isSafeInteger(quantity) || quantity <= 0) {
+      throw usageError(`Invalid --item "${entry}"; use ORDER_ITEM_ID:QTY.`);
+    }
+    return { orderItemId, quantity };
+  });
+  const client = ctx.requireClient();
+  const data = unwrap(await client.requestJson("POST", `/api/admin/orders/${encodeURIComponent(id)}/returns`, {
+    body: {
+      items,
+      restock: Boolean(ctx.flags.restock),
+      reason: flagString(ctx.flags, "reason") || "",
+      note: flagString(ctx.flags, "note") || "",
+    },
+  }));
+  return { data, message: `Recorded ${items.length} return item(s) for order ${id}.` };
+}
+
 export async function customersList(ctx) {
   const client = ctx.requireClient();
   return {

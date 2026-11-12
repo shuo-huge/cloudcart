@@ -3,8 +3,9 @@ import { Database } from "@cloudcart/database";
 import { isSafeMediaKey, listEnabledRemoteAdminOrigins } from "@cloudcart/core";
 import { HttpError } from "@cloudcart/shared";
 import { securityHeaders } from "@cloudcart/security";
-import type { AppContext } from "./env";
+import type { AppContext, Env } from "./env";
 import { CLOUDCART_VERSION } from "./env";
+import { runScheduledTasks } from "./scheduled";
 import { adminAuth } from "./middleware";
 import { adminRoutes } from "./routes/admin";
 import { apiKeyRoutes } from "./routes/api-keys";
@@ -192,4 +193,9 @@ app.onError((error, c) => {
   return c.text("Internal server error", 500);
 });
 
-export default app;
+export default {
+  fetch: (request: Request, env: Env, ctx: ExecutionContext) => app.fetch(request, env, ctx),
+  scheduled: (_controller: ScheduledController, env: Env, ctx: ExecutionContext) => {
+    ctx.waitUntil(runScheduledTasks(env));
+  },
+};

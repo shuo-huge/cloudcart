@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import type { Database } from "@cloudcart/database";
 import {
   dispatchEmailOutbox,
   enqueueOrderEventEmails,
@@ -15,7 +16,7 @@ import {
   validateEmailConfig,
 } from "@cloudcart/plugin-email-notifications";
 import { HttpError } from "@cloudcart/shared";
-import type { AppContext } from "./env";
+import type { AppContext, Env } from "./env";
 import { db } from "./lib";
 
 /**
@@ -48,13 +49,22 @@ export async function processEmailQueue(
   c: Context<AppContext>,
   options: { limit?: number } = {},
 ): Promise<DispatchSummary> {
-  if (!(await isEmailNotificationsEnabled(db(c)))) {
+  return processEmailQueueForEnv(db(c), c.env, options);
+}
+
+/** Cron-friendly variant that does not need a Hono request context. */
+export async function processEmailQueueForEnv(
+  database: Database,
+  env: Env,
+  options: { limit?: number } = {},
+): Promise<DispatchSummary> {
+  if (!(await isEmailNotificationsEnabled(database))) {
     return { sent: 0, failed: 0, skipped: true };
   }
   const config = normalizeEmailConfig(
-    await loadPluginRuntimeConfig(db(c), EMAIL_PLUGIN_ID, c.env.APP_MASTER_KEY),
+    await loadPluginRuntimeConfig(database, EMAIL_PLUGIN_ID, env.APP_MASTER_KEY),
   );
-  const validation = validateEmailConfig(config, { hasEmailBinding: Boolean(c.env.EMAIL) });
+  const validation = validateEmailConfig(config, { hasEmailBinding: Boolean(env.EMAIL) });
   if (!validation.ok) {
     throw new HttpError(
       503,
@@ -62,8 +72,8 @@ export async function processEmailQueue(
       validation.errors?.[0] ?? "Email notifications are not configured.",
     );
   }
-  const transport = createEmailTransport(config, { emailBinding: c.env.EMAIL });
-  return dispatchEmailOutbox(db(c), transport, {
+  const transport = createEmailTransport(config, { emailBinding: env.EMAIL });
+  return dispatchEmailOutbox(database, transport, {
     limit: options.limit,
     from: emailFromAddress(config),
     replyTo: config.replyTo || undefined,

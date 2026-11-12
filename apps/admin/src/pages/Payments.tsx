@@ -39,6 +39,7 @@ export function PaymentsPage() {
   const [stripeSaving, setStripeSaving] = useState(false);
   const [paypal, setPaypal] = useState<Record<string, string>>({ mode: "sandbox", clientId: "", clientSecret: "", webhookId: "" });
   const [paypalSaving, setPaypalSaving] = useState(false);
+  const [paypalTesting, setPaypalTesting] = useState(false);
 
   useEffect(() => {
     if (manualSettings.data) {
@@ -111,6 +112,18 @@ export function PaymentsPage() {
       toast(err instanceof Error ? err.message : "Save failed.", "error");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function testPaypal(): Promise<void> {
+    setPaypalTesting(true);
+    try {
+      const result = await adminSend<{ ok: boolean; message?: string }>("/plugins/paypal/test", "POST", {});
+      toast(result.message || "PayPal credentials accepted.");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "PayPal test failed.", "error");
+    } finally {
+      setPaypalTesting(false);
     }
   }
 
@@ -250,7 +263,12 @@ export function PaymentsPage() {
               <input value={paypal.webhookId} onInput={(event) => setPaypal({ ...paypal, webhookId: (event.target as HTMLInputElement).value })} />
             </Field>
           </div>
-          <button type="submit" class="button button--primary" disabled={paypalSaving}>{paypalSaving ? "Saving…" : "Save PayPal settings"}</button>
+          <div class="row-actions">
+            <button type="submit" class="button button--primary" disabled={paypalSaving}>{paypalSaving ? "Saving…" : "Save PayPal settings"}</button>
+            <button type="button" class="button" disabled={paypalTesting || paypalSaving} onClick={() => void testPaypal()}>
+              {paypalTesting ? "Testing…" : "Test PayPal"}
+            </button>
+          </div>
         </form>
       </section>
 
