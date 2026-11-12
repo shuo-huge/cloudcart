@@ -209,6 +209,7 @@ async function stripeRefund(
   amountRefunded: number,
   refundId: string,
   paymentIntent: string,
+  includeMetadata = true,
 ): Promise<{ status: number; result: string }> {
   const response = await stripeSignedEvent({
     id: eventId,
@@ -219,7 +220,7 @@ async function stripeRefund(
         amount_refunded: amountRefunded,
         currency: "usd",
         payment_intent: paymentIntent,
-        metadata: { order_id: orderId },
+        ...(includeMetadata ? { metadata: { order_id: orderId } } : {}),
         refunds: { data: [{ id: refundId, created: Date.now() }] },
       },
     },
@@ -392,12 +393,15 @@ describe("Stripe payment plugin", () => {
     expect(order.totalCents).toBe(5000);
     expect(await payStripeOrder(order.id, sessionId, paymentIntent, 5000, `evt_paid_refund_${suffix}`)).toBe("processed");
 
+    // Stripe charge events may omit the Checkout Session metadata; resolve the
+    // order from the PaymentIntent stored on the original transaction.
     const first = await stripeRefund(
       order.id,
       `evt_refund_1_${suffix}`,
       3000,
       `re_1_${suffix}`,
       paymentIntent,
+      false,
     );
     expect(first).toEqual({ status: 200, result: "processed" });
     let row = await database().first<{ status: string; payment_status: string; refunded_cents: number }>(
