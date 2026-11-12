@@ -2,7 +2,7 @@ import type { Database } from "@cloudcart/database";
 import type { OrderRow, PaymentTransactionRow } from "@cloudcart/database";
 import type { PaymentEvent } from "@cloudcart/plugin-sdk";
 import { HttpError, newId, nowIso } from "@cloudcart/shared";
-import { writeAuditLog } from "./audit";
+import { auditLogStatement } from "./audit";
 
 export type PaymentEventResult = "processed" | "duplicate" | "ignored" | "mismatch" | "closed";
 
@@ -15,10 +15,14 @@ export interface PaymentEventOutcome {
 /**
  * Applies a verified provider event exactly once.
  *
- * - Event ids are unique per plugin, making retries idempotent.
- * - Amount and currency are compared to the server-side order before any
- *   state change; mismatches never mark an order paid.
- * - Cancelled/refunded orders stay closed.
+ * The event row is inserted first as an unprocessed marker. All state changes
+ * and the processed marker are then written in one D1 batch, so a crash cannot
+ * leave the event marked as processed without applying it. If an earlier
+ * attempt only inserted the marker, the next delivery is retried instead of
+ * being skipped as a duplicate.
+ *
+ * Refunds use the provider refund id when available, or an event-scoped id
+ * otherwise, so repeated partial-refund callbacks cannot be applied twice.
  */
 export async function processPaymentEvent(
   db: Database,
@@ -30,48 +34,91 @@ export async function processPaymentEvent(
     return { result: "ignored", orderId: null, message: "No matching order for this payment event." };
   }
 
-  const insert = await db.run(
-    `INSERT OR IGNORE INTO payment_events
-       (id, plugin_id, event_id, event_type, order_id, payload_json, processed_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`,
-    [
-      newId("pev"),
-      pluginId,
-      event.eventId.slice(0, 200),
-      event.rawType.slice(0, 120),
-      order.id,
-      JSON.stringify(event).slice(0, 20_000),
-      nowIso(),
-    ],
+  const eventKey = event.eventId.slice(0, 200);
+  const existing = await db.first<{ processed_at: string | null }>(
+    "SELECT processed_at FROM payment_events WHERE plugin_id = ? AND event_id = ?",
+    [pluginId, eventKey],
   );
-  if (Number(insert.meta.changes ?? 0) === 0) {
+  if (existing?.processed_at) {
     return { result: "duplicate", orderId: order.id };
+  }
+  if (!existing) {
+    const insert = await db.run(
+      `INSERT OR IGNORE INTO payment_events
+         (id, plugin_id, event_id, event_type, order_id, payload_json, processed_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`,
+      [
+        newId("pev"),
+        pluginId,
+        eventKey,
+        event.rawType.slice(0, 120),
+        order.id,
+        JSON.stringify(event).slice(0, 20_000),
+        nowIso(),
+      ],
+    );
+    if (Number(insert.meta.changes ?? 0) === 0) {
+      const row = await db.first<{ processed_at: string | null }>(
+        "SELECT processed_at FROM payment_events WHERE plugin_id = ? AND event_id = ?",
+        [pluginId, eventKey],
+      );
+      if (row?.processed_at) return { result: "duplicate", orderId: order.id };
+    }
   }
 
   const now = nowIso();
-  const markProcessed = async (detail: string): Promise<void> => {
-    await db.run(
-      "UPDATE payment_events SET processed_at = ?, payload_json = ? WHERE plugin_id = ? AND event_id = ?",
-      [now, JSON.stringify({ ...event, result: detail }).slice(0, 20_000), pluginId, event.eventId.slice(0, 200)],
-    );
+  const processedStatement = (detail: string): D1PreparedStatement => db.prepare(
+    `UPDATE payment_events SET processed_at = ?, payload_json = ?
+     WHERE plugin_id = ? AND event_id = ? AND processed_at IS NULL`,
+    [
+      now,
+      JSON.stringify({ ...event, result: detail }).slice(0, 20_000),
+      pluginId,
+      eventKey,
+    ],
+  );
+
+  const finish = async (
+    detail: string,
+    result: PaymentEventResult,
+    message?: string,
+  ): Promise<PaymentEventOutcome> => {
+    const update = await processedStatement(detail).run();
+    if (Number(update.meta.changes ?? 0) === 0) {
+      return { result: "duplicate", orderId: order.id };
+    }
+    return { result, orderId: order.id, message };
   };
 
-  if (event.type === "payment.succeeded" || event.type === "refund") {
-    if (event.amountCents !== order.total_cents || event.currency.toUpperCase() !== order.currency.toUpperCase()) {
-      await markProcessed("amount_mismatch");
-      return {
-        result: "mismatch",
-        orderId: order.id,
-        message: "The provider amount does not match the order total.",
-      };
+  const finalize = async (
+    statements: D1PreparedStatement[],
+    detail: string,
+  ): Promise<PaymentEventOutcome> => {
+    statements.push(processedStatement(detail));
+    try {
+      await db.batch(statements);
+    } catch (error) {
+      // A concurrent delivery may have won the race. If it also marked the
+      // event processed, this delivery is a duplicate rather than a failure.
+      const row = await db.first<{ processed_at: string | null }>(
+        "SELECT processed_at FROM payment_events WHERE plugin_id = ? AND event_id = ?",
+        [pluginId, eventKey],
+      );
+      if (row?.processed_at) return { result: "duplicate", orderId: order.id };
+      throw error;
     }
-  }
+    return { result: "processed", orderId: order.id };
+  };
 
   if (event.type === "payment.succeeded") {
-    if (["cancelled", "refunded"].includes(order.status)) {
-      await markProcessed("order_closed");
-      return { result: "closed", orderId: order.id, message: "The order is no longer payable." };
+    if (event.amountCents !== order.total_cents ||
+        event.currency.toUpperCase() !== order.currency.toUpperCase()) {
+      return finish("amount_mismatch", "mismatch", "The provider amount does not match the order total.");
     }
+    if (["cancelled", "refunded"].includes(order.status)) {
+      return finish("order_closed", "closed", "The order is no longer payable.");
+    }
+
     const transaction = await findTransaction(db, pluginId, event, order.id);
     const statements: D1PreparedStatement[] = [];
     if (transaction) {
@@ -104,21 +151,19 @@ export async function processPaymentEvent(
        WHERE id = ? AND payment_status <> 'paid' AND status NOT IN ('cancelled', 'refunded')`,
       [now, now, order.id],
     ));
-    await db.batch(statements);
-    await writeAuditLog(db, {
+    statements.push(auditLogStatement(db, {
       adminId: null,
       action: "payment.received",
       entityType: "order",
       entityId: order.id,
       details: { plugin: pluginId, eventId: event.eventId, amountCents: event.amountCents },
-    });
-    await markProcessed("processed");
-    return { result: "processed", orderId: order.id };
+    }));
+    return finalize(statements, "processed");
   }
 
   if (event.type === "payment.failed") {
     const transaction = await findTransaction(db, pluginId, event, order.id);
-    await db.batch([
+    const statements: D1PreparedStatement[] = [
       ...(transaction ? [db.prepare(
         "UPDATE payment_transactions SET status = 'failed', provider_status = ?, updated_at = ? WHERE id = ?",
         [event.rawType.slice(0, 120), now, transaction.id],
@@ -127,42 +172,84 @@ export async function processPaymentEvent(
         "UPDATE orders SET payment_status = 'failed', updated_at = ? WHERE id = ? AND payment_status <> 'paid'",
         [now, order.id],
       ),
-    ]);
-    await markProcessed("failed");
-    return { result: "processed", orderId: order.id };
+      auditLogStatement(db, {
+        adminId: null,
+        action: "payment.failed",
+        entityType: "order",
+        entityId: order.id,
+        details: { plugin: pluginId, eventId: event.eventId, amountCents: event.amountCents },
+      }),
+    ];
+    return finalize(statements, "failed");
   }
 
   if (event.type === "refund") {
-    const refunded = Math.min(order.total_cents, order.refunded_cents + event.amountCents);
-    const fully = refunded >= order.total_cents;
-    await db.batch([
+    const cumulativeTarget = event.refundedTotalCents;
+    if (!Number.isSafeInteger(event.amountCents) || event.amountCents <= 0 ||
+        event.currency.toUpperCase() !== order.currency.toUpperCase()) {
+      return finish("refund_mismatch", "mismatch", "The refund event is invalid.");
+    }
+
+    let target: number;
+    if (cumulativeTarget !== undefined) {
+      if (!Number.isSafeInteger(cumulativeTarget) || cumulativeTarget < 0 || cumulativeTarget > order.total_cents) {
+        return finish("refund_mismatch", "mismatch", "The refund total does not match the order total.");
+      }
+      target = Math.max(order.refunded_cents, cumulativeTarget);
+    } else {
+      target = order.refunded_cents + event.amountCents;
+      if (target > order.total_cents) {
+        return finish("refund_mismatch", "mismatch", "The refund exceeds the amount paid.");
+      }
+    }
+
+    if (target <= order.refunded_cents) {
+      return finish("duplicate_refund", "duplicate");
+    }
+
+    const refundProviderId = event.providerRefundId || `refund-event:${event.eventId}`;
+    const existingRefund = await db.first<{ id: string }>(
+      "SELECT id FROM payment_transactions WHERE plugin_id = ? AND provider_id = ?",
+      [pluginId, refundProviderId],
+    );
+    if (existingRefund) {
+      return finish("duplicate_refund", "duplicate");
+    }
+
+    const delta = target - order.refunded_cents;
+    const fully = target >= order.total_cents;
+    return finalize([
       db.prepare(
         `UPDATE orders SET refunded_cents = ?, payment_status = ?, status = ?, updated_at = ? WHERE id = ?`,
-        [refunded, fully ? "refunded" : "partially_refunded", fully ? "refunded" : "partially_refunded", now, order.id],
+        [target, fully ? "refunded" : "partially_refunded",
+          fully ? "refunded" : "partially_refunded", now, order.id],
       ),
       db.prepare(
         `INSERT INTO payment_transactions (id, order_id, plugin_id, provider_id, status, amount_cents, currency,
            provider_status, metadata_json, created_at, updated_at, paid_at)
-         VALUES (?, ?, ?, ?, 'refunded', ?, ?, ?, '{}', ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, 'refunded', ?, ?, ?, ?, ?, ?, ?)`,
         [
-          newId("txn"), order.id, pluginId, event.providerTransactionId ?? null,
-          event.amountCents, order.currency, event.rawType.slice(0, 120), now, now, now,
+          newId("txn"), order.id, pluginId, refundProviderId,
+          delta, order.currency, event.rawType.slice(0, 120),
+          JSON.stringify({
+            providerTransactionId: event.providerTransactionId,
+            providerOrderId: event.providerOrderId,
+            cumulativeRefundedCents: target,
+          }),
+          now, now, now,
         ],
       ),
-    ]);
-    await writeAuditLog(db, {
-      adminId: null,
-      action: "payment.refunded",
-      entityType: "order",
-      entityId: order.id,
-      details: { plugin: pluginId, eventId: event.eventId, amountCents: event.amountCents },
-    });
-    await markProcessed("refunded");
-    return { result: "processed", orderId: order.id };
+      auditLogStatement(db, {
+        adminId: null,
+        action: "payment.refunded",
+        entityType: "order",
+        entityId: order.id,
+        details: { plugin: pluginId, eventId: event.eventId, amountCents: delta, refundedCents: target },
+      }),
+    ], "refunded");
   }
 
-  await markProcessed("pending");
-  return { result: "processed", orderId: order.id };
+  return finish("pending", "processed");
 }
 
 async function resolveOrder(db: Database, pluginId: string, event: PaymentEvent): Promise<OrderRow | null> {

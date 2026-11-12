@@ -139,6 +139,94 @@ async function latestOrder(): Promise<{ id: string; status: string; payment_stat
   );
 }
 
+async function stockFor(slug: string): Promise<number> {
+  const row = await database().first<{ stock: number }>("SELECT stock FROM products WHERE slug = ?", [slug]);
+  return row?.stock ?? -1;
+}
+
+async function createStripeOrder(input: {
+  name: string;
+  slug: string;
+  quantity: number;
+  email: string;
+  sessionId: string;
+  price?: string;
+}): Promise<{ id: string; totalCents: number }> {
+  const productId = await createProduct(input.name, input.slug, input.price ?? "25.00");
+  await enable("stripe");
+  await configure("stripe", {
+    mode: "sandbox",
+    publishableKey: "pk_test_example",
+    secretKey: "sk_test_example",
+    webhookSecret: "whsec_test_example",
+  }, ["secretKey", "webhookSecret"]);
+  const mock = mockFetch([{
+    match: (url) => url === "https://api.stripe.com/v1/checkout/sessions",
+    reply: () => jsonResponse({ id: input.sessionId, url: `https://checkout.stripe.com/c/pay/${input.sessionId}` }),
+  }]);
+  try {
+    await addToCart(productId, input.quantity);
+    const response = await checkout("stripe", input.email);
+    expect(response.status).toBe(303);
+  } finally {
+    mock.restore();
+  }
+  const order = await latestOrder();
+  expect(order).toBeTruthy();
+  return { id: order!.id, totalCents: order!.total_cents };
+}
+
+async function stripeSignedEvent(payload: unknown): Promise<Response> {
+  const body = JSON.stringify(payload);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const signature = await computeStripeSignature("whsec_test_example", body, timestamp);
+  return stripeWebhook(body, `t=${timestamp},v1=${signature}`);
+}
+
+async function payStripeOrder(orderId: string, sessionId: string, paymentIntent: string, amountCents: number, eventId: string): Promise<string> {
+  const response = await stripeSignedEvent({
+    id: eventId,
+    type: "checkout.session.completed",
+    data: {
+      object: {
+        id: sessionId,
+        client_reference_id: orderId,
+        amount_total: amountCents,
+        currency: "usd",
+        payment_status: "paid",
+        payment_intent: paymentIntent,
+        metadata: { order_id: orderId },
+      },
+    },
+  });
+  expect(response.status).toBe(200);
+  return ((await response.json()) as { result: string }).result;
+}
+
+async function stripeRefund(
+  orderId: string,
+  eventId: string,
+  amountRefunded: number,
+  refundId: string,
+  paymentIntent: string,
+): Promise<{ status: number; result: string }> {
+  const response = await stripeSignedEvent({
+    id: eventId,
+    type: "charge.refunded",
+    data: {
+      object: {
+        id: `ch_${eventId}`,
+        amount_refunded: amountRefunded,
+        currency: "usd",
+        payment_intent: paymentIntent,
+        metadata: { order_id: orderId },
+        refunds: { data: [{ id: refundId, created: Date.now() }] },
+      },
+    },
+  });
+  return { status: response.status, result: ((await response.json()) as { result: string }).result };
+}
+
 async function stripeWebhook(payload: string, signature: string): Promise<Response> {
   return request("/webhooks/stripe", {
     method: "POST",
@@ -287,6 +375,234 @@ describe("Stripe payment plugin", () => {
       [order!.id],
     );
     expect(after?.payment_status).toBe("unpaid");
+  });
+
+  it("applies partial and cumulative refunds exactly once", async () => {
+    await ensureSession();
+    const suffix = Date.now();
+    const sessionId = `cs_refund_${suffix}`;
+    const paymentIntent = `pi_refund_${suffix}`;
+    const order = await createStripeOrder({
+      name: "Refund Tee",
+      slug: `refund-tee-${suffix}`,
+      quantity: 2,
+      email: `refund-${suffix}@example.com`,
+      sessionId,
+    });
+    expect(order.totalCents).toBe(5000);
+    expect(await payStripeOrder(order.id, sessionId, paymentIntent, 5000, `evt_paid_refund_${suffix}`)).toBe("processed");
+
+    const first = await stripeRefund(
+      order.id,
+      `evt_refund_1_${suffix}`,
+      3000,
+      `re_1_${suffix}`,
+      paymentIntent,
+    );
+    expect(first).toEqual({ status: 200, result: "processed" });
+    let row = await database().first<{ status: string; payment_status: string; refunded_cents: number }>(
+      "SELECT status, payment_status, refunded_cents FROM orders WHERE id = ?",
+      [order.id],
+    );
+    expect(row).toEqual({ status: "partially_refunded", payment_status: "partially_refunded", refunded_cents: 3000 });
+
+    const second = await stripeRefund(
+      order.id,
+      `evt_refund_2_${suffix}`,
+      5000,
+      `re_2_${suffix}`,
+      paymentIntent,
+    );
+    expect(second).toEqual({ status: 200, result: "processed" });
+    row = await database().first(
+      "SELECT status, payment_status, refunded_cents FROM orders WHERE id = ?",
+      [order.id],
+    );
+    expect(row).toEqual({ status: "refunded", payment_status: "refunded", refunded_cents: 5000 });
+
+    const refunds = await database().all<{ amount_cents: number }>(
+      "SELECT amount_cents FROM payment_transactions WHERE order_id = ? AND status = 'refunded' ORDER BY created_at",
+      [order.id],
+    );
+    expect(refunds.map((entry) => entry.amount_cents)).toEqual([3000, 2000]);
+
+    const duplicate = await stripeRefund(
+      order.id,
+      `evt_refund_2_${suffix}`,
+      5000,
+      `re_2_${suffix}`,
+      paymentIntent,
+    );
+    expect(duplicate).toEqual({ status: 200, result: "duplicate" });
+    const afterDuplicate = await database().first<{ refunded_cents: number }>(
+      "SELECT refunded_cents FROM orders WHERE id = ?",
+      [order.id],
+    );
+    expect(afterDuplicate?.refunded_cents).toBe(5000);
+
+    const mismatch = await stripeRefund(
+      order.id,
+      `evt_refund_3_${suffix}`,
+      6000,
+      `re_3_${suffix}`,
+      paymentIntent,
+    );
+    expect(mismatch).toEqual({ status: 200, result: "mismatch" });
+    const afterMismatch = await database().first<{ refunded_cents: number }>(
+      "SELECT refunded_cents FROM orders WHERE id = ?",
+      [order.id],
+    );
+    expect(afterMismatch?.refunded_cents).toBe(5000);
+
+    // Simulate a crash after the state batch but before the processed marker:
+    // redelivery must detect the existing refund transaction and not add it again.
+    await database().run(
+      "UPDATE payment_events SET processed_at = NULL WHERE plugin_id = 'stripe' AND event_id = ?",
+      [`evt_refund_2_${suffix}`],
+    );
+    const retry = await stripeRefund(
+      order.id,
+      `evt_refund_2_${suffix}`,
+      5000,
+      `re_2_${suffix}`,
+      paymentIntent,
+    );
+    expect(retry).toEqual({ status: 200, result: "duplicate" });
+    const afterRetry = await database().first<{ refunded_cents: number }>(
+      "SELECT refunded_cents FROM orders WHERE id = ?",
+      [order.id],
+    );
+    expect(afterRetry?.refunded_cents).toBe(5000);
+  });
+
+  it("retries a payment event that was inserted but not processed", async () => {
+    await ensureSession();
+    const suffix = Date.now();
+    const sessionId = `cs_retry_${suffix}`;
+    const order = await createStripeOrder({
+      name: "Retry Tee",
+      slug: `retry-tee-${suffix}`,
+      quantity: 2,
+      email: `retry-${suffix}@example.com`,
+      sessionId,
+    });
+    const eventId = `evt_retry_${suffix}`;
+    await database().run(
+      `INSERT INTO payment_events (id, plugin_id, event_id, event_type, order_id, payload_json, processed_at, created_at)
+       VALUES (?, 'stripe', ?, 'checkout.session.completed', ?, '{}', NULL, ?)`,
+      [`pev_retry_${suffix}`, eventId, order.id, new Date().toISOString()],
+    );
+
+    expect(await payStripeOrder(order.id, sessionId, `pi_retry_${suffix}`, 5000, eventId)).toBe("processed");
+    const paid = await database().first<{ payment_status: string }>(
+      "SELECT payment_status FROM orders WHERE id = ?",
+      [order.id],
+    );
+    expect(paid?.payment_status).toBe("paid");
+    const event = await database().first<{ processed_at: string | null }>(
+      "SELECT processed_at FROM payment_events WHERE plugin_id = 'stripe' AND event_id = ?",
+      [eventId],
+    );
+    expect(event?.processed_at).toBeTruthy();
+  });
+
+  it("rejects refunds for unpaid orders", async () => {
+    await ensureSession();
+    const suffix = Date.now();
+    const order = await createStripeOrder({
+      name: "Unpaid Refund Tee",
+      slug: `unpaid-refund-tee-${suffix}`,
+      quantity: 1,
+      email: `unpaid-refund-${suffix}@example.com`,
+      sessionId: `cs_unpaid_refund_${suffix}`,
+    });
+    const response = await json(`/api/admin/orders/${order.id}/refund`, "POST", { amount: "1.00" }, csrf());
+    expect(response.status).toBe(409);
+    const body = (await response.json()) as { error?: { code?: string } };
+    expect(body.error?.code).toBe("refund_unpaid");
+    const refunds = await database().first<{ count: number }>(
+      "SELECT COUNT(*) AS count FROM payment_transactions WHERE order_id = ? AND status = 'refunded'",
+      [order.id],
+    );
+    expect(refunds?.count).toBe(0);
+  });
+});
+
+describe("order cancellation and payment retry", () => {
+  it("restocks exactly once when cancelled through the status endpoint", async () => {
+    await ensureSession();
+    const suffix = Date.now();
+    const slug = `cancel-tee-${suffix}`;
+    const productId = await createProduct("Cancel Tee", slug, "25.00");
+    const before = await stockFor(slug);
+    await addToCart(productId, 1);
+    expect((await checkout("manual", `cancel-${suffix}@example.com`)).status).toBe(303);
+    const order = await latestOrder();
+    expect(order).toBeTruthy();
+    expect(await stockFor(slug)).toBe(before - 1);
+
+    const cancelled = await json(`/api/admin/orders/${order!.id}/status`, "POST", { status: "cancelled" }, csrf());
+    expect(cancelled.status).toBe(200);
+    expect(await stockFor(slug)).toBe(before);
+    let movements = await database().first<{ count: number }>(
+      "SELECT COUNT(*) AS count FROM inventory_movements WHERE reference_id = ? AND reason = 'restock'",
+      [order!.id],
+    );
+    expect(movements?.count).toBe(1);
+
+    const again = await json(`/api/admin/orders/${order!.id}/cancel`, "POST", {}, csrf());
+    expect(again.status).toBe(200);
+    expect(await stockFor(slug)).toBe(before);
+    movements = await database().first(
+      "SELECT COUNT(*) AS count FROM inventory_movements WHERE reference_id = ? AND reason = 'restock'",
+      [order!.id],
+    );
+    expect(movements?.count).toBe(1);
+  });
+
+  it("does not double-restock when cancel requests race", async () => {
+    await ensureSession();
+    const suffix = Date.now();
+    const slug = `race-cancel-tee-${suffix}`;
+    const productId = await createProduct("Race Cancel Tee", slug, "25.00");
+    const before = await stockFor(slug);
+    await addToCart(productId, 1);
+    expect((await checkout("manual", `race-cancel-${suffix}@example.com`)).status).toBe(303);
+    const order = await latestOrder();
+    expect(order).toBeTruthy();
+    expect(await stockFor(slug)).toBe(before - 1);
+
+    const [first, second] = await Promise.all([
+      json(`/api/admin/orders/${order!.id}/status`, "POST", { status: "cancelled" }, csrf()),
+      json(`/api/admin/orders/${order!.id}/cancel`, "POST", {}, csrf()),
+    ]);
+    expect([first.status, second.status]).toEqual([200, 200]);
+    expect(await stockFor(slug)).toBe(before);
+    const movements = await database().first<{ count: number }>(
+      "SELECT COUNT(*) AS count FROM inventory_movements WHERE reference_id = ? AND reason = 'restock'",
+      [order!.id],
+    );
+    expect(movements?.count).toBe(1);
+  });
+
+  it("does not create a new checkout for a cancelled order", async () => {
+    await ensureSession();
+    const suffix = Date.now();
+    const order = await createStripeOrder({
+      name: "Closed Retry Tee",
+      slug: `closed-retry-tee-${suffix}`,
+      quantity: 1,
+      email: `closed-retry-${suffix}@example.com`,
+      sessionId: `cs_closed_retry_${suffix}`,
+    });
+    const cancelled = await json(`/api/admin/orders/${order.id}/status`, "POST", { status: "cancelled" }, csrf());
+    expect(cancelled.status).toBe(200);
+
+    const masterKey = (env as unknown as { APP_MASTER_KEY: string }).APP_MASTER_KEY;
+    const access = await createOrderAccessToken(masterKey, order.id);
+    const response = await request(`/orders/${encodeURIComponent(access)}/pay`, { method: "POST" });
+    expect(response.status).toBe(409);
+    expect(await response.text()).toContain("This order can no longer be paid.");
   });
 });
 

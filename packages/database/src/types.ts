@@ -206,6 +206,8 @@ export interface OrderRow {
   updated_at: string;
   paid_at: string | null;
   cancelled_at: string | null;
+  restocked_at: string | null;
+  restock_token: string | null;
 }
 
 export interface OrderItemRow {

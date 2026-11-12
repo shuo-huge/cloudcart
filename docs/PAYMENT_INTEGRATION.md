@@ -53,8 +53,9 @@ Recommended events:
 3. The customer pays on Stripe’s hosted page.
 4. Stripe sends webhooks. The Worker verifies `Stripe-Signature` over the **raw body**
    (`HMAC-SHA256(secret, "<timestamp>.<body>")`, multiple `v1` values, 5-minute tolerance).
-5. Core resolves the internal order, checks amount and currency, inserts the event id idempotently,
-   then marks the transaction and order paid.
+5. Core resolves the internal order, checks amount and currency, then writes the event id, transaction
+   update and order state in one atomic batch. A retry of an event whose marker was not committed is
+   processed again instead of being skipped.
 
 The success redirect alone never marks an order paid.
 
@@ -97,11 +98,20 @@ Handled events: `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED/DECLINED`,
 
 ## 4. Refunds
 
-- The admin “Record refund” action records the refund inside CloudCart.
-- For Stripe/PayPal orders it first calls the provider refund API; a provider failure aborts the local
-  record. Stripe refunds use the stored `payment_intent`; PayPal resolves the capture id from the
-  PayPal order.
+The admin UI labels the action according to the payment method: online orders show **Refund payment**
+and call the provider; manual orders show **Record refund** and only write a local record.
+
+- Only orders with `payment_status = paid` or `partially_refunded` can be refunded.
+- The requested amount must not exceed `total_cents - refunded_cents`; the server checks this before
+  calling any provider refund API.
+- For Stripe/PayPal orders the provider refund runs first; a provider failure aborts the local record.
+  Stripe refunds use the stored `payment_intent`; PayPal resolves the capture id from the PayPal order.
 - Manual payments record a local refund transaction with the admin id.
+- Stripe `charge.refunded` reports the cumulative refunded amount; PayPal
+  `PAYMENT.CAPTURE.REFUNDED` reports a per-refund delta. Both are normalised before updating
+  `refunded_cents`.
+- Refund transactions use the provider refund id when available (or an event-scoped id otherwise), so
+  repeated partial-refund callbacks are applied at most once.
 
 Refund webhooks (`charge.refunded`, `PAYMENT.CAPTURE.REFUNDED`) also update the order through the
 event pipeline.
@@ -111,8 +121,10 @@ event pipeline.
 ## 5. Security invariants
 
 - Prices, shipping, discounts and totals are recomputed server-side at checkout.
-- Provider amounts/currencies must equal the internal order before it is marked paid.
-- Event ids are unique per plugin; duplicates are acknowledged but not re-applied.
+- Provider payment amounts/currencies must equal the internal order before it is marked paid.
+- Refunds are bounded by the remaining refundable amount; unpaid orders cannot be refunded.
+- Event ids are unique per plugin; duplicates are acknowledged but not re-applied. The event marker
+  and state changes are committed atomically, and unprocessed markers are retried.
 - Webhook signatures are checked before parsing.
 - Secrets never reach the browser, logs, or API responses.
 - Disabling a provider blocks new checkouts but webhooks for historical transactions still work.

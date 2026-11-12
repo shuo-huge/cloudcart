@@ -10,9 +10,9 @@ export interface AuditEntry {
   ip?: string | null;
 }
 
-/** Administrative actions are recorded with actor, target and timestamp. */
-export async function writeAuditLog(db: Database, entry: AuditEntry): Promise<void> {
-  await db.run(
+/** Build the audit insert so callers can include it in an atomic batch. */
+export function auditLogStatement(db: Database, entry: AuditEntry): D1PreparedStatement {
+  return db.prepare(
     `INSERT INTO audit_logs (id, admin_id, action, entity_type, entity_id, details_json, ip, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -26,6 +26,11 @@ export async function writeAuditLog(db: Database, entry: AuditEntry): Promise<vo
       nowIso(),
     ],
   );
+}
+
+/** Administrative actions are recorded with actor, target and timestamp. */
+export async function writeAuditLog(db: Database, entry: AuditEntry): Promise<void> {
+  await auditLogStatement(db, entry).run();
 }
 
 export async function listAuditLogs(

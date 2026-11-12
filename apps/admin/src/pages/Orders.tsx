@@ -153,7 +153,11 @@ export function OrderDetailPage({ id }: { id: string }) {
   const shipping = addresses.find((address) => address.type === "shipping");
   const activeTransitions = TRANSITIONS[order.status] ?? [];
   const canConfirm = order.payment_method === "manual" && order.payment_status !== "paid" &&
-    !["cancelled", "refunded"].includes(order.status);
+    !["cancelled", "refunded", "partially_refunded"].includes(order.status);
+  const canRefund = ["paid", "partially_refunded"].includes(order.payment_status) &&
+    order.refunded_cents < order.total_cents;
+  const onlineRefund = Boolean(order.payment_method && order.payment_method !== "manual");
+  const providerName = order.payment_method ? enumLabel(order.payment_method) : "the payment provider";
 
   return (
     <div class="page">
@@ -239,7 +243,7 @@ export function OrderDetailPage({ id }: { id: string }) {
             >
               Update status
             </button>
-            {order.status !== "cancelled" && !["shipped", "completed", "refunded"].includes(order.status) && (
+            {order.status !== "cancelled" && !["shipped", "completed", "refunded", "partially_refunded"].includes(order.status) && (
               <button
                 type="button"
                 class="button button--danger button--block"
@@ -326,9 +330,9 @@ export function OrderDetailPage({ id }: { id: string }) {
               ))}
               {transactions.length === 0 && <li class="muted">No transactions recorded.</li>}
             </ul>
-            {order.payment_status === "paid" && (
+            {canRefund && (
               <button type="button" class="button button--block" style="margin-top:12px" onClick={() => setRefundOpen(true)}>
-                Record refund
+                {onlineRefund ? "Refund payment" : "Record refund"}
               </button>
             )}
           </section>
@@ -336,8 +340,12 @@ export function OrderDetailPage({ id }: { id: string }) {
       </div>
 
       {refundOpen && (
-        <Modal title="Record a refund" onClose={() => setRefundOpen(false)}>
-          <p class="muted">This records a refund in CloudCart. It does not move money at the payment provider.</p>
+        <Modal title={onlineRefund ? "Refund payment" : "Record a refund"} onClose={() => setRefundOpen(false)}>
+          <p class="muted">
+            {onlineRefund
+              ? <>This sends a refund through <strong>{providerName}</strong>. The payment provider moves the money back to the customer.</>
+              : "This records an offline refund in CloudCart. It does not move money at a payment provider."}
+          </p>
           <Field label={`Amount (${order.currency})`}>
             <input inputMode="decimal" value={refundAmount} onInput={(event) => setRefundAmount((event.target as HTMLInputElement).value)} />
           </Field>
@@ -347,9 +355,12 @@ export function OrderDetailPage({ id }: { id: string }) {
               type="button"
               class="button button--danger"
               disabled={busy || !refundAmount}
-              onClick={() => run(() => adminSend(`/orders/${id}/refund`, "POST", { amount: refundAmount }), "Refund recorded.").then(() => setRefundOpen(false))}
+              onClick={() => run(
+                () => adminSend(`/orders/${id}/refund`, "POST", { amount: refundAmount }),
+                onlineRefund ? "Refund sent to the payment provider." : "Refund recorded.",
+              ).then(() => setRefundOpen(false))}
             >
-              Record refund
+              {onlineRefund ? "Refund payment" : "Record refund"}
             </button>
           </div>
         </Modal>

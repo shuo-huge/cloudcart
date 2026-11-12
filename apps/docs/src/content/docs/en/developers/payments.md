@@ -53,9 +53,13 @@ Requirements:
 
 **Admin → Order details → Refund**.
 
-- Manual: record the refund
-- Stripe/PayPal: call the provider's refund API
-- Remote plugin: call the plugin's refund endpoint
+- Only `paid` or `partially_refunded` orders can be refunded; the amount cannot exceed the remaining
+  refundable balance.
+- Manual: record a local refund without moving money.
+- Stripe/PayPal: call the provider's refund API, then record the local transaction.
+- Remote plugin: call the plugin's refund endpoint.
+- Partial and cumulative refund callbacks are checked against the remaining balance; duplicate
+  callbacks are not applied twice.
 
 Refunds do not delete orders or transaction records.
 

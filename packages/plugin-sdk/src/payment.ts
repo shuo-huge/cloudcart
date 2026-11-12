@@ -43,6 +43,13 @@ export interface PaymentEvent {
   /** Provider order/session id, used to resolve the internal order when metadata is absent. */
   providerOrderId?: string | null;
   providerTransactionId: string | null;
+  /** Provider refund id. Unique per refund; used to deduplicate callbacks. */
+  providerRefundId?: string | null;
+  /**
+   * Total refunded on the transaction after this event, when the provider
+   * reports a cumulative total (for example Stripe `charge.refunded`).
+   */
+  refundedTotalCents?: number;
   amountCents: number;
   currency: string;
   rawType: string;

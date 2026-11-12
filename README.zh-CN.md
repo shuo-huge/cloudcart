@@ -266,7 +266,7 @@ plugins/          admin/i18n、payments/{manual,stripe,paypal}、notifications/e
 examples/         remote-plugin 远程插件示例
 themes/           8 套内置主题
 brand/            CloudCart 图标母版与生成后的 favicon/App icon
-migrations/       7 个 D1 迁移
+migrations/       8 个 D1 迁移
 scripts/          部署 CLI、图标生成、jsDelivr 图片发布
 tests/            workerd 集成测试
 docs/             架构、插件、主题、支付、部署、安全、测试文档
@@ -280,7 +280,7 @@ docs/             架构、插件、主题、支付、部署、安全、测试�
 
 **v0.5.0 — 功能可用，但尚未宣称 1.0。** 已实现和未实现的事项都明确列出。
 
-已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、内置/远程混合插件与 iframe 后台、短期插件 JWT、HMAC 服务调用、远程支付适配器、R2/jsDelivr 本地上传与加密凭据、面向智能体的 API Key 管理 CLI、106 个 workerd 测试、21 个 CLI Node 测试、12 个 Playwright 浏览器测试（含 setup 共 13 个）。
+已实现并通过测试：初始化/登录/CSRF、商品/分类/图片、可拖拽排序的商品图片、服务端购物车、访客结账、库存预占、税费计算（含税/不含税、国家/地区规则）、人工支付、订单履约、8 套主题、页面编辑器草稿/预览/发布与版本回滚、Stripe 验签与幂等、PayPal 下单/Capture/Webhook 验签、后台语言包、带 D1 发件箱和重试的邮件通知、内置/远程混合插件与 iframe 后台、短期插件 JWT、HMAC 服务调用、远程支付适配器、R2/jsDelivr 本地上传与加密凭据、面向智能体的 API Key 管理 CLI、112 个 workerd 测试、21 个 CLI Node 测试、12 个 Playwright 浏览器测试（含 setup 共 13 个）。
 
 未验证或尚未完成：
 - 已于 2026-11-11 使用测试卡 `4242 4242 4242 4242` 完成真实 Stripe Sandbox 支付验证（订单 `CC-20261111-SDFVBC`）；PayPal Sandbox 账号仍待补充。自动化测试中的支付接口仍使用 mock。

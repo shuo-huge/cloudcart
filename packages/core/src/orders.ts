@@ -63,6 +63,16 @@ export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
   return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+/**
+ * Orders that may still start or retry a payment. Closed, fulfilled and
+ * already-paid orders must not create a new provider checkout.
+ */
+export function isOrderPayable(
+  order: Pick<OrderRow, "status" | "payment_status">,
+): boolean {
+  return ["draft", "pending_payment"].includes(order.status) && order.payment_status !== "paid";
+}
+
 export async function createOrderAccessToken(masterKey: string, orderId: string): Promise<string> {
   const encoded = toBase64Url(utf8(orderId));
   const signature = await hmacSha256Base64Url(masterKey, orderId, "cloudcart:order-access:v1");
@@ -429,7 +439,12 @@ export async function updateOrderStatus(
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const order = await db.first<OrderRow>("SELECT * FROM orders WHERE id = ?", [orderId]);
   if (!order) return { ok: false, message: "Order not found." };
-  if (order.status === nextStatus) return { ok: true };
+  if (order.status === nextStatus) {
+    // A legacy cancellation may have changed the status without restocking.
+    // Let the shared cancel path reconcile it (it is a no-op once restocked).
+    if (nextStatus === "cancelled") return cancelOrderAndRestock(db, orderId);
+    return { ok: true };
+  }
   if (!(ORDER_STATUSES as readonly string[]).includes(nextStatus)) {
     return { ok: false, message: "Unknown order status." };
   }
@@ -439,6 +454,7 @@ export async function updateOrderStatus(
   if (!canTransition(order.status, nextStatus)) {
     return { ok: false, message: `Cannot change an order from ${order.status} to ${nextStatus}.` };
   }
+  if (nextStatus === "cancelled") return cancelOrderAndRestock(db, orderId);
   const now = nowIso();
   await db.run(
     `UPDATE orders SET status = ?, updated_at = ?,
@@ -463,7 +479,8 @@ export async function confirmManualPayment(
     return { ok: false, message: "Only manual payments can be confirmed by an administrator." };
   }
   if (order.payment_status === "paid") return { ok: true };
-  if (order.status === "cancelled" || order.status === "refunded") {
+  if (["cancelled", "refunded", "partially_refunded"].includes(order.status) ||
+      order.payment_status === "partially_refunded") {
     return { ok: false, message: "This order can no longer accept payment." };
   }
   const now = nowIso();
@@ -497,33 +514,46 @@ export async function addOrderInternalNote(db: Database, orderId: string, note: 
 export async function cancelOrderAndRestock(db: Database, orderId: string): Promise<{ ok: true } | { ok: false; message: string }> {
   const detail = await getOrderDetail(db, orderId);
   if (!detail) return { ok: false, message: "Order not found." };
-  if (["shipped", "completed", "refunded"].includes(detail.order.status)) {
-    return { ok: false, message: "A shipped or completed order cannot be cancelled." };
+  if (["shipped", "completed", "refunded", "partially_refunded"].includes(detail.order.status)) {
+    return { ok: false, message: "A fulfilled or refunded order cannot be cancelled." };
   }
-  if (detail.order.status === "cancelled") return { ok: true };
+
   const now = nowIso();
-  const statements: D1PreparedStatement[] = [];
+  const claimToken = newId("rst");
+  const claimed = "(SELECT 1 FROM orders WHERE id = ? AND restock_token = ? AND restocked_at = ?)";
+  const statements: D1PreparedStatement[] = [
+    // Only one caller can claim the restock. Legacy cancelled orders with no
+    // restocked_at are repaired by the same path.
+    db.prepare(
+      "UPDATE orders SET restock_token = ?, restocked_at = ? WHERE id = ? AND restocked_at IS NULL",
+      [claimToken, now, orderId],
+    ),
+  ];
   for (const item of detail.items) {
     if (item.variant_id) {
       statements.push(db.prepare(
-        "UPDATE product_variants SET stock = stock + ?, updated_at = ? WHERE id = ?",
-        [item.quantity, now, item.variant_id],
+        `UPDATE product_variants SET stock = stock + ?, updated_at = ?
+         WHERE id = ? AND EXISTS ${claimed}`,
+        [item.quantity, now, item.variant_id, orderId, claimToken, now],
       ));
     } else {
       statements.push(db.prepare(
-        "UPDATE products SET stock = stock + ?, updated_at = ? WHERE id = ? AND manage_stock = 1",
-        [item.quantity, now, item.product_id],
+        `UPDATE products SET stock = stock + ?, updated_at = ?
+         WHERE id = ? AND manage_stock = 1 AND EXISTS ${claimed}`,
+        [item.quantity, now, item.product_id, orderId, claimToken, now],
       ));
     }
     statements.push(db.prepare(
       `INSERT INTO inventory_movements (id, product_id, variant_id, delta, reason, reference_type, reference_id, created_by, created_at)
-       VALUES (?, ?, ?, ?, 'restock', 'order', ?, NULL, ?)`,
-      [newId("inv"), item.product_id, item.variant_id, item.quantity, orderId, now],
+       SELECT ?, ?, ?, ?, 'restock', 'order', ?, NULL, ?
+       WHERE EXISTS ${claimed}`,
+      [newId("inv"), item.product_id, item.variant_id, item.quantity, orderId, now, orderId, claimToken, now],
     ));
   }
   statements.push(db.prepare(
-    "UPDATE orders SET status = 'cancelled', cancelled_at = ?, updated_at = ? WHERE id = ?",
-    [now, now, orderId],
+    `UPDATE orders SET status = 'cancelled', cancelled_at = COALESCE(cancelled_at, ?), updated_at = ?
+     WHERE id = ? AND restock_token = ? AND restocked_at = ?`,
+    [now, now, orderId, claimToken, now],
   ));
   await db.batch(statements);
   return { ok: true };
@@ -534,12 +564,33 @@ export async function recordManualRefund(
   orderId: string,
   amountCents: number,
   adminId: string,
+  options: { providerRefundId?: string | null; previousRefundedCents?: number } = {},
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const order = await db.first<OrderRow>("SELECT * FROM orders WHERE id = ?", [orderId]);
   if (!order) return { ok: false, message: "Order not found." };
-  if (amountCents <= 0 || amountCents > order.total_cents - order.refunded_cents) {
+  if (!["paid", "partially_refunded"].includes(order.payment_status)) {
+    return { ok: false, message: "Only paid orders can be refunded." };
+  }
+  const remaining = order.total_cents - order.refunded_cents;
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > remaining) {
     return { ok: false, message: "Refund amount is invalid." };
   }
+
+  const pluginId = order.payment_method ?? "manual";
+  const providerId = options.providerRefundId || `refund-${orderId}-${newId("rfnd")}`;
+  const existing = await db.first<{ id: string }>(
+    "SELECT id FROM payment_transactions WHERE plugin_id = ? AND provider_id = ?",
+    [pluginId, providerId],
+  );
+  if (existing) return { ok: true };
+
+  // A provider webhook may have recorded the same refund while the admin
+  // request was in flight. Do not add it twice.
+  if (options.previousRefundedCents !== undefined &&
+      order.refunded_cents >= options.previousRefundedCents + amountCents) {
+    return { ok: true };
+  }
+
   const refunded = order.refunded_cents + amountCents;
   const fullyRefunded = refunded >= order.total_cents;
   const now = nowIso();
@@ -554,8 +605,9 @@ export async function recordManualRefund(
          provider_status, metadata_json, created_at, updated_at, paid_at)
        VALUES (?, ?, ?, ?, 'refunded', ?, ?, 'manual_refund', ?, ?, ?, ?)`,
       [
-        newId("txn"), orderId, order.payment_method ?? "manual", `refund-${orderId}-${Date.now()}`,
-        amountCents, order.currency, JSON.stringify({ refundedBy: adminId }), now, now, now,
+        newId("txn"), orderId, pluginId, providerId,
+        amountCents, order.currency,
+        JSON.stringify({ refundedBy: adminId, cumulativeRefundedCents: refunded }), now, now, now,
       ],
     ),
   ]);

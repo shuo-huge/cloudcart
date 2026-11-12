@@ -3,6 +3,7 @@ import {
   createOrderAccessToken,
   getOrderByAccessToken,
   getOrderDetail,
+  isOrderPayable,
   loadPaymentRuntimeConfig,
   parseOrderAccessToken,
   processPaymentEvent,
@@ -107,6 +108,12 @@ paymentReturnRoutes.get("/paypal/return", async (c) => {
   }
   const detail = await getOrderDetail(database, orderId);
   if (!detail) return c.redirect("/", 302);
+  if (detail.order.payment_status === "paid") {
+    return c.redirect(`/orders/${access}?payment=success`, 302);
+  }
+  if (!isOrderPayable(detail.order)) {
+    return c.redirect(`/orders/${access}?payment=error`, 302);
+  }
 
   const transaction = await database.first<{ id: string }>(
     "SELECT id FROM payment_transactions WHERE order_id = ? AND plugin_id = 'paypal' AND provider_id = ?",
@@ -164,6 +171,9 @@ export async function retryPayment(c: Context<AppContext>, orderId: string): Pro
   if (!detail) throw new HttpError(404, "order_not_found", "Order not found.");
   if (detail.order.payment_status === "paid") {
     return c.redirect(`/orders/${await createOrderAccessToken(c.env.APP_MASTER_KEY, orderId)}`, 302);
+  }
+  if (!isOrderPayable(detail.order)) {
+    throw new HttpError(409, "order_not_payable", "This order can no longer be paid.");
   }
   const method = detail.order.payment_method ?? "";
   const plugin = await resolvePaymentPlugin(db(c), c.env.APP_MASTER_KEY, method);
